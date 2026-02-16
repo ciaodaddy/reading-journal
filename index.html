@@ -90,7 +90,6 @@
         const { useState, useEffect, useMemo, useRef } = React;
         
         // --- CONFIGURATION ---
-        // Fallback config for GitHub Pages (Production)
         const MY_FIREBASE_CONFIG = {
             apiKey: "AIzaSyAj8BIwFHJ-VrOZFeGPRgUF1LSeI03iHzI",
             authDomain: "book-listing-web-app.firebaseapp.com",
@@ -101,7 +100,6 @@
             measurementId: "G-0Z5HESVLP5"
         };
 
-        // Determine Config based on Environment (Canvas vs Production)
         const getFirebaseConfig = () => {
             try {
                 if (typeof __firebase_config !== 'undefined') {
@@ -119,8 +117,7 @@
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         
         // --- FEEDBACK CONFIGURATION ---
-        // Create a Google Form and paste the "Send -> Link" URL here.
-        const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform"; // <--- PASTE YOUR GOOGLE FORM LINK HERE
+        const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform";
 
         const callGemini = async (promptText) => {
             const activeKey = (typeof __gemini_api_key !== 'undefined' && __gemini_api_key) ? __gemini_api_key : GEMINI_API_KEY;
@@ -135,7 +132,6 @@
             return res.candidates[0].content.parts[0].text;
         };
 
-        // Standardized lists
         const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const BOOK_CLASSIFICATIONS = [
             "Literary Fiction", "Historical Fiction", "Sci-Fi / Fantasy", "Mystery / Thriller",
@@ -682,6 +678,7 @@
             };
 
             const finalizeReview = async () => {
+                if (!activeBook) return;
                 setIsGenerating(true);
                 const { addDoc } = window.FirebaseSDK;
                 const dataStr = STANDARDIZED_QUESTIONS.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
@@ -694,8 +691,12 @@
                     await addDoc(getCollectionRef(), { ...activeBook, review, tag, year: "2026", updatedAt: Date.now(), order: nextOrder });
                     setIsInterviewOpen(false);
                     setNewBook({ title: '', author: '', monthFinished: MONTHS[new Date().getMonth()], rating: 0, classification: BOOK_CLASSIFICATIONS[0], status: 'finished' });
-                } catch (e) { setErrorMessage(`Synthesis failed: ${e.message}`); } 
-                finally { setIsGenerating(false); setActiveBook(null); }
+                    setActiveBook(null); // Clear only on success
+                } catch (e) { 
+                    setErrorMessage(`Synthesis failed: ${e.message}`); 
+                } finally { 
+                    setIsGenerating(false); 
+                }
             };
 
             const handleExportData = () => {
@@ -727,7 +728,7 @@
 
                     <div className="max-w-2xl mx-auto mt-8">
                         <header className="text-center border-b border-[#1a1a1a] pb-8 mb-10">
-                            {/* MOVED USER HANDLE TO CENTER */}
+                            {/* CENTERED USER HANDLE */}
                             <div className="inline-flex items-center gap-2 bg-white border border-[#dcd9d0] px-4 py-1.5 rounded-full mb-6 shadow-sm">
                                 <span className="text-xs font-bold uppercase tracking-widest text-[#9b7e46]">{userHandle}</span>
                                 {isReadOnly ? <Icon name="lock" size={12} className="text-gray-400"/> : <Icon name="key" size={12} className="text-green-600"/>}
@@ -1023,6 +1024,16 @@
                                 <button onClick={() => setIsInterviewOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><Icon name="x" size={20} /></button>
                                 <div className="p-8 text-ink-black">
                                     <div className="flex items-center gap-3 mb-8"><div className="bg-[#9b7e46] text-white p-2 rounded-full"><Icon name="sparkles" size={20} /></div><div><h3 className="crimson text-xl font-bold uppercase tracking-wider">Reflecting: {activeBook?.title}</h3><p className="text-[10px] font-bold uppercase text-gray-400">Anchor {currentQuestionIdx + 1} of {STANDARDIZED_QUESTIONS.length}</p></div></div>
+                                    
+                                    {/* ERROR MESSAGE INSIDE MODAL */}
+                                    {errorMessage && (
+                                        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 flex gap-3 shadow-sm rounded-sm items-start text-red-800">
+                                            <Icon name="alert-triangle" className="mt-0.5" />
+                                            <div className="flex-1 font-bold text-sm">{errorMessage}</div>
+                                            <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600"><Icon name="x" size={16}/></button>
+                                        </div>
+                                    )}
+
                                     {isGenerating ? (<div className="space-y-4 py-8"><div className="h-4 shimmer w-full"></div><div className="h-4 shimmer w-5/6"></div><div className="h-4 shimmer w-4/6"></div><p className="crimson italic text-center text-gray-400 mt-4">Writing reflections...</p></div>) : (
                                         <div className="space-y-6">
                                             <p className="crimson text-xl italic text-gray-700 leading-relaxed">"{STANDARDIZED_QUESTIONS[currentQuestionIdx]}"</p>
