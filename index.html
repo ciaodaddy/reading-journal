@@ -139,14 +139,13 @@
             "Essays / Poetry", "Current Affairs"
         ];
         const STANDARDIZED_QUESTIONS = [
-            "How did your current physical or mental environment bleed into your interpretation of this book?",
-            "What specific stylistic choice or 'fingerprint' by the author felt most distinct or jarring?",
-            "Which single image or line is currently stuck in your mind, and why do you think it's the one that stayed?",
-            "If you had to describe the 'texture' of this book (e.g., sharp, hazy, dense, clinical, warm), what would it be?",
-            "At what point in the story did your initial expectation shift most dramatically?",
-            "What specific curiosity does this leave you with for your next read?"
+            "Describe your feelings and perspectives when you finished this book, compared to how you felt before beginning to read it.",
+            "At what point in the book did your initial perspective or expectation change?",
+            "What specific stylistic choice or “fingerprint” by the author felt the most distinct or jarring?",
+            "What single image, interaction, or actual phrase/line has stuck in your mind, and why do you think it has?",
+            "Assign a sensory characteristic to this book (e.g. its texture, sound, taste, or smell), and explain why that is.",
+            "What specific curiosity in regard to the author, topic, or genre, does this book leave you with?"
         ];
-
         // --- ICONS ---
         const Icon = ({ name, size = 18, className = "", fill = "none" }) => {
             const icons = {
@@ -681,18 +680,20 @@
                 const { addDoc } = window.FirebaseSDK;
                 const dataStr = STANDARDIZED_QUESTIONS.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
                 try {
-                    const review = await callGemini(`Synthesize a narrative reading journal entry for "${activeBook.title}" by ${activeBook.author}. Focus on uniquely specific reflections based on these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
+                    // Updated prompt to emphasize user voice/tone
+                    const review = await callGemini(`Synthesize a narrative reading journal entry for "${activeBook.title}" by ${activeBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI. Focus on the specific reflections in these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
+                    
                     const tagRaw = await callGemini(`Provide a punchy 2-4 word atmospheric tag for: ${review}`);
                     const tag = tagRaw.replace(/[".]/g, '').trim();
                     const nextOrder = books.length > 0 ? Math.max(...books.map(b => b.order ?? 0)) + 1 : 0;
                     
                     await addDoc(getCollectionRef(), { ...activeBook, review, tag, year: "2026", updatedAt: Date.now(), order: nextOrder });
                     setIsInterviewOpen(false);
-                    setNewBook({ title: '', author: '', monthFinished: MONTHS[new Date().getMonth()], rating: 5, classification: BOOK_CLASSIFICATIONS[0], status: 'finished' });
+                    // Resetting rating to 0 here to match your new default
+                    setNewBook({ title: '', author: '', monthFinished: MONTHS[new Date().getMonth()], rating: 0, classification: BOOK_CLASSIFICATIONS[0], status: 'finished' });
                 } catch (e) { setErrorMessage(`Synthesis failed: ${e.message}`); } 
                 finally { setIsGenerating(false); setActiveBook(null); }
             };
-
             const handleExportData = () => {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(books, null, 2));
                 const downloadAnchorNode = document.createElement('a');
