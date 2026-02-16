@@ -491,6 +491,10 @@
                             if (data.secretKey === secretKey) {
                                 setIsReadOnly(false);
                             } else {
+                                // If they provided a key but it was wrong
+                                if (secretKey) {
+                                    alert("Incorrect Secret Key. You are viewing in Read-Only mode.");
+                                }
                                 setIsReadOnly(true);
                             }
                         }
@@ -501,8 +505,7 @@
                     }
                 };
                 checkPermissions();
-            }, [userHandle, secretKey, db, currentUser]); 
-
+            }, [userHandle, secretKey, db, currentUser]);
             // Focus search
             useEffect(() => {
                 if (isSearchOpen && searchInputRef.current) searchInputRef.current.focus();
