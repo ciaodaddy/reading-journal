@@ -118,6 +118,10 @@
         const GEMINI_API_KEY = "AIzaSyCZuPrskD5WDVA0R51RAe2bv4hdg6yn82I";
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         
+        // --- FEEDBACK CONFIGURATION ---
+        // Create a Google Form and paste the "Send -> Link" URL here.
+        const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform"; // <--- PASTE YOUR GOOGLE FORM LINK HERE
+
         const callGemini = async (promptText) => {
             const activeKey = (typeof __gemini_api_key !== 'undefined' && __gemini_api_key) ? __gemini_api_key : GEMINI_API_KEY;
             const res = await fetchWithRetry(
@@ -139,7 +143,6 @@
             "Essays / Poetry", "Current Affairs"
         ];
         
-        // Updated Questions
         const STANDARDIZED_QUESTIONS = [
             "Describe your feelings and perspectives when you finished this book, compared to how you felt before beginning to read it.",
             "At what point in the book did your initial perspective or expectation change?",
@@ -307,44 +310,6 @@
             return canvas.toDataURL('image/jpeg', 0.85);
         };
 
-        // --- FEEDBACK CONFIG & COMPONENT ---
-        const CONTACT_USER = "roblewczyk"; // UPDATE THIS WITH YOUR EMAIL USER (e.g., 'robert')
-        const CONTACT_DOMAIN = "gmail.com"; // UPDATE THIS WITH YOUR EMAIL DOMAIN (e.g., 'gmail.com')
-        
-        function FeedbackModal({ isOpen, onClose }) {
-            const [msg, setMsg] = useState("");
-            
-            if (!isOpen) return null;
-
-            const handleSend = () => {
-                const email = `${CONTACT_USER}@${CONTACT_DOMAIN}`;
-                const subject = encodeURIComponent("Journal App Feedback");
-                const body = encodeURIComponent(msg);
-                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-                onClose();
-            };
-
-            return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#1a1a1a]/40 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white w-full max-w-md p-6 border border-[#dcd9d0] shadow-2xl relative">
-                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black"><Icon name="x" size={20} /></button>
-                        <h3 className="crimson text-xl font-bold mb-4">Send Feedback</h3>
-                        <p className="text-xs text-gray-500 mb-4">Have a suggestion or found a bug? This will open your email client to send a message.</p>
-                        <textarea 
-                            className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none resize-none h-32 mb-4"
-                            placeholder="Your message here..."
-                            value={msg}
-                            onChange={e => setMsg(e.target.value)}
-                            autoFocus
-                        />
-                        <button onClick={handleSend} className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors flex items-center justify-center gap-2">
-                            <Icon name="send" size={14} /> Send Message
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
         // --- LANDING PAGE / LOBBY ---
         function LandingPage({ onEnter, db }) {
             const [handle, setHandle] = useState("");
@@ -352,7 +317,6 @@
             const [showKey, setShowKey] = useState(false);
             const [userExists, setUserExists] = useState(null); 
             const [isChecking, setIsChecking] = useState(false); 
-            const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
             // Debounce check for user existence
             useEffect(() => {
@@ -465,10 +429,9 @@
                         </div>
                         
                         <div className="mt-8">
-                            <button onClick={() => setIsFeedbackOpen(true)} className="text-[10px] text-gray-300 hover:text-gray-500 uppercase tracking-widest font-bold">Feedback</button>
+                            <a href={FEEDBACK_URL} target="_blank" className="text-[10px] text-gray-300 hover:text-gray-500 uppercase tracking-widest font-bold">Feedback</a>
                         </div>
                     </div>
-                    <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
                 </div>
             );
         }
@@ -496,7 +459,6 @@
                 status: 'finished'
             });
             const [isInterviewOpen, setIsInterviewOpen] = useState(false);
-            const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
             const [editingId, setEditingId] = useState(null);
             const [editingBook, setEditingBook] = useState(null);
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
@@ -758,7 +720,7 @@
                     <div className="fixed top-0 left-0 right-0 p-2 flex justify-end items-start z-40 pointer-events-none">
                          <div className="pointer-events-auto flex gap-2">
                              <a href="?" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Go to Lobby">Lobby</a>
-                             <button onClick={() => setIsFeedbackOpen(true)} className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Send Feedback"><Icon name="send" size={14} /></button>
+                             <a href={FEEDBACK_URL} target="_blank" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Send Feedback"><Icon name="send" size={14} /></a>
                              <button onClick={copyShareLink} className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors">Share View</button>
                          </div>
                     </div>
@@ -998,11 +960,11 @@
                                                         <div className="flex flex-col items-end gap-2 shrink-0">
                                                             {!isReadOnly && (
                                                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, classification: book.classification || BOOK_CLASSIFICATIONS[0]}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors" title="Edit Entry"><Icon name="edit-3" size={16} /></button>
+                                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, classification: book.classification || BOOK_CLASSIFICATIONS[0]}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors"><Icon name="edit-3" size={14} /></button>
                                                                     {deleteConfirmId === book.id ? (
                                                                         <button onClick={() => handleRemoveEntry(book.id)} className="bg-red-600 text-white px-2 py-0.5 text-[10px] uppercase rounded hover:bg-red-700">Delete?</button>
                                                                     ) : (
-                                                                        <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors" title="Delete Entry"><Icon name="trash-2" size={16} /></button>
+                                                                        <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors"><Icon name="trash-2" size={14} /></button>
                                                                     )}
                                                                 </div>
                                                             )}
@@ -1075,7 +1037,6 @@
                             </div>
                         </div>
                     )}
-                    <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
                 </div>
             );
         }
