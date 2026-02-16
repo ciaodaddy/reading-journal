@@ -288,86 +288,121 @@
             return canvas.toDataURL('image/jpeg', 0.85);
         };
 
-        // --- LANDING PAGE / LOBBY ---
-        function LandingPage({ onEnter }) {
-            const [handle, setHandle] = useState("");
-            const [key, setKey] = useState("");
-            const [existingUsers, setExistingUsers] = useState([]);
-            const [db, setDb] = useState(null);
+ // --- LANDING PAGE / LOBBY ---
+function LandingPage({ onEnter }) {
+    const [handle, setHandle] = useState("");
+    const [key, setKey] = useState("");
+    const [existingUsers, setExistingUsers] = useState([]);
+    const [db, setDb] = useState(null);
+    const [isChecking, setIsChecking] = useState(false);
+    const [userExists, setUserExists] = useState(null); // null = unknown, true = exists, false = new
 
-            useEffect(() => {
-                const init = async () => {
-                    const { initializeApp, getFirestore, collection, getDocs } = window.FirebaseSDK;
-                    const app = initializeApp(MY_FIREBASE_CONFIG);
-                    const dbInstance = getFirestore(app);
-                    setDb(dbInstance);
-                    
-                    // Fetch existing users (simply checking documents in collection)
-                    try {
-                        const snap = await getDocs(collection(dbInstance, 'artifacts', 'reading-journal-2026', 'users'));
-                        const users = snap.docs.map(d => d.id);
-                        setExistingUsers(users);
-                    } catch (e) {
-                        console.error("Could not fetch users", e);
-                    }
-                };
-                init();
-            }, []);
+    useEffect(() => {
+        const init = async () => {
+            const { initializeApp, getFirestore, collection, getDocs } = window.FirebaseSDK;
+            const app = initializeApp(MY_FIREBASE_CONFIG);
+            const dbInstance = getFirestore(app);
+            setDb(dbInstance);
+            
+            try {
+                const snap = await getDocs(collection(dbInstance, 'artifacts', 'reading-journal-2026', 'users'));
+                const users = snap.docs.map(d => d.id);
+                setExistingUsers(users);
+            } catch (e) {
+                console.error("Could not fetch users", e);
+            }
+        };
+        init();
+    }, []);
 
-            const handleGo = () => {
-                if(!handle) return;
-                const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
-                onEnter(cleanHandle, key);
-            };
+    // Check if user exists when they type a handle
+    useEffect(() => {
+        if (!handle || !db) {
+            setUserExists(null);
+            return;
+        }
+        const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (existingUsers.includes(cleanHandle)) {
+            setUserExists(true);
+        } else {
+            setUserExists(false);
+        }
+    }, [handle, existingUsers, db]);
 
-            return (
-                <div className="min-h-screen flex items-center justify-center p-4">
-                    <div className="bg-white max-w-md w-full p-8 border border-[#dcd9d0] shadow-xl text-center">
-                        <h1 className="crimson text-4xl font-bold mb-2">Reading Journal</h1>
-                        <p className="text-gray-500 italic mb-8 crimson">A shared space for literary memory.</p>
-                        
-                        <div className="space-y-4">
-                            <div className="text-left">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Your Handle (Name)</label>
-                                <input 
-                                    type="text" 
-                                    value={handle} 
-                                    onChange={e => setHandle(e.target.value)} 
-                                    className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
-                                    placeholder="e.g. robert"
-                                />
-                            </div>
-                            <div className="text-left">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Secret Key (For Editing)</label>
-                                <input 
-                                    type="password" 
-                                    value={key} 
-                                    onChange={e => setKey(e.target.value)} 
-                                    className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
-                                    placeholder="Optional (Read-only if empty)"
-                                />
-                            </div>
-                            <button onClick={handleGo} className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors">
-                                Enter Journal
-                            </button>
-                        </div>
+    const handleGo = () => {
+        if(!handle) return;
+        const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        // PROTECT AGAINST ZOMBIE JOURNALS
+        if (userExists === false && !key) {
+            alert("To create a NEW journal, you must set a Secret Key so you can edit it later!");
+            return;
+        }
+        
+        onEnter(cleanHandle, key);
+    };
 
-                        {existingUsers.length > 0 && (
-                            <div className="mt-8 pt-8 border-t border-[#dcd9d0]">
-                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Browsing Library</h3>
-                                <div className="flex flex-wrap gap-2 justify-center">
-                                    {existingUsers.map(u => (
-                                        <button key={u} onClick={() => setHandle(u)} className="bg-gray-100 hover:bg-[#fdfaf3] border border-transparent hover:border-[#dcd9d0] px-3 py-1 rounded text-xs text-gray-600 transition-colors">
-                                            {u}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+    return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="bg-white max-w-md w-full p-8 border border-[#dcd9d0] shadow-xl text-center">
+                <h1 className="crimson text-4xl font-bold mb-2">Reading Journal</h1>
+                <p className="text-gray-500 italic mb-8 crimson">A shared space for literary memory.</p>
+                
+                <div className="space-y-4">
+                    <div className="text-left">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
+                            Your Handle (Name)
+                        </label>
+                        <input 
+                            type="text" 
+                            value={handle} 
+                            onChange={e => setHandle(e.target.value)} 
+                            className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
+                            placeholder="e.g. robert"
+                        />
+                        {/* HELPFUL HINT TEXT */}
+                        {handle && userExists === true && (
+                            <p className="text-[10px] text-green-600 mt-1 font-bold">● Found existing journal</p>
+                        )}
+                        {handle && userExists === false && (
+                            <p className="text-[10px] text-[#9b7e46] mt-1 font-bold">● Creating new journal</p>
                         )}
                     </div>
+
+                    <div className="text-left">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
+                            Secret Key {userExists === true ? "(Leave blank to Read-Only)" : "(Required for new journal)"}
+                        </label>
+                        <input 
+                            type="password" 
+                            value={key} 
+                            onChange={e => setKey(e.target.value)} 
+                            className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
+                            placeholder={userExists === false ? "Create a password..." : "Enter key to edit..."}
+                        />
+                    </div>
+
+                    <button onClick={handleGo} className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors">
+                        {userExists === false ? "Create Journal" : "Enter Journal"}
+                    </button>
                 </div>
-            );
-        }
+
+                {existingUsers.length > 0 && (
+                    <div className="mt-8 pt-8 border-t border-[#dcd9d0]">
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Browsing Library</h3>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                            {existingUsers.map(u => (
+                                <button key={u} onClick={() => setHandle(u)} className="bg-gray-100 hover:bg-[#fdfaf3] border border-transparent hover:border-[#dcd9d0] px-3 py-1 rounded text-xs text-gray-600 transition-colors">
+                                    {u}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
         // --- MAIN APP COMPONENT ---
         function JournalApp({ userHandle, secretKey }) {
