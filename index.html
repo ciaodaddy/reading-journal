@@ -716,8 +716,7 @@
                              {isReadOnly ? <Icon name="lock" size={14} className="text-gray-400"/> : <Icon name="key" size={14} className="text-green-600"/>}
                          </div>
                          <div className="pointer-events-auto flex gap-2">
-                             <a href="/" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Go to Lobby">Lobby</a>
-                             <button onClick={copyShareLink} className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors">Share View</button>
+                            <a href="?" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Go to Lobby">Lobby</a> <button onClick={copyShareLink} className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors">Share View</button>
                          </div>
                     </div>
 
@@ -742,34 +741,39 @@
                                 </h3>
                                 <div className="grid grid-cols-1 gap-4">
                                     {currentReads.map(book => (
-                                        <div key={book.id} className="bg-white border-l-4 border-[#9b7e46] p-6 shadow-sm flex items-start gap-6">
-                                            <div className="shrink-0 w-24 group relative mini-frame">
-                                                <div className="journal-frame flex items-center justify-center bg-[#fdfaf3]">
-                                                    <img src={book.imageUrl || defaultGeometricArt} alt="Cover" className="sketch-content" />
-                                                    {!isReadOnly && (
-                                                        <div className="absolute inset-0 bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
-                                                            <button onClick={() => { setActiveBook({ id: book.id }); fileInputRef.current.click(); }} className="text-black hover:text-[#9b7e46] transition-colors"><Icon name="upload" size={14} /></button>
-                                                            <button onClick={() => handleFetchCover(book)} disabled={generatingImageId === book.id} className="text-black hover:text-[#9b7e46] transition-colors">
-                                                                {generatingImageId === book.id ? <div className="animate-spin h-3 w-3 border border-black border-t-transparent rounded-full" /> : <Icon name="search" size={14} />}
-                                                            </button>
-                                                            <button onClick={() => handleRevertCover(book)} className="text-gray-400 hover:text-black transition-colors"><Icon name="undo" size={14} /></button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="crimson text-2xl font-bold leading-none mb-1">{book.title}</h4>
-                                                <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">{book.author}</p>
-                                                <div className="mt-2 text-[10px] text-gray-400 font-bold uppercase">{book.classification}</div>
-                                            </div>
-                                            {!isReadOnly && (
-                                                <div className="flex flex-col gap-2 shrink-0">
-                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors"><Icon name="edit-3" size={16} /></button>
-                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, status: 'finished', monthFinished: MONTHS[new Date().getMonth()], rating: 5 }); }} className="text-gray-300 hover:text-green-600 transition-colors"><Icon name="check" size={16} /></button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+    <div key={book.id} className="bg-white border-l-4 border-[#9b7e46] p-6 shadow-sm flex items-start gap-6">
+        <div className="shrink-0 w-24 group relative mini-frame">
+            <div className="journal-frame flex items-center justify-center bg-[#fdfaf3]">
+                <img src={book.imageUrl || defaultGeometricArt} alt="Cover" className="sketch-content" />
+                {!isReadOnly && (
+                    <div className="absolute inset-0 bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                        <button onClick={() => { setActiveBook({ id: book.id }); fileInputRef.current.click(); }} className="text-black hover:text-[#9b7e46] transition-colors" title="Upload Image"><Icon name="upload" size={14} /></button>
+                        <button onClick={() => handleFetchCover(book)} disabled={generatingImageId === book.id} className="text-black hover:text-[#9b7e46] transition-colors" title="Fetch Cover">
+                            {generatingImageId === book.id ? <div className="animate-spin h-3 w-3 border border-black border-t-transparent rounded-full" /> : <Icon name="search" size={14} />}
+                        </button>
+                        <button onClick={() => handleRevertCover(book)} className="text-gray-400 hover:text-black transition-colors" title="Revert to Default"><Icon name="undo" size={14} /></button>
+                    </div>
+                )}
+            </div>
+        </div>
+        <div className="flex-1">
+            <h4 className="crimson text-2xl font-bold leading-none mb-1">{book.title}</h4>
+            <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">{book.author}</p>
+            <div className="mt-2 text-[10px] text-gray-400 font-bold uppercase">{book.classification}</div>
+        </div>
+        {!isReadOnly && (
+            <div className="flex flex-col gap-2 shrink-0">
+                <button onClick={() => { setEditingId(book.id); setEditingBook({...book}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors" title="Edit Entry"><Icon name="edit-3" size={16} /></button>
+                <button onClick={() => { setEditingId(book.id); setEditingBook({...book, status: 'finished', monthFinished: MONTHS[new Date().getMonth()], rating: 5 }); }} className="text-gray-300 hover:text-green-600 transition-colors" title="Mark as Finished"><Icon name="check" size={16} /></button>
+                {deleteConfirmId === book.id ? (
+                    <button onClick={() => handleRemoveEntry(book.id)} className="bg-red-600 text-white px-2 py-0.5 text-[10px] uppercase rounded hover:bg-red-700">Delete?</button>
+                ) : (
+                    <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors" title="Delete Entry"><Icon name="trash-2" size={16} /></button>
+                )}
+            </div>
+        )}
+    </div>
+))}
                                 </div>
                             </section>
                         )}
