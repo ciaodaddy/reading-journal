@@ -321,7 +321,8 @@
                         return;
                     }
                     
-                    const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    // Allow dashes and underscores in handle
+                    const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9-_]/g, '');
                     if (!cleanHandle) {
                         setUserExists(null);
                         return;
@@ -347,7 +348,8 @@
 
             const handleGo = () => {
                 if(!handle) return;
-                const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
+                // Allow dashes and underscores in handle
+                const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9-_]/g, '');
                 
                 // If we are still checking, wait or ignore
                 if (isChecking) return;
@@ -363,12 +365,15 @@
             return (
                 <div className="min-h-screen flex items-center justify-center p-4">
                     <div className="bg-white max-w-md w-full p-8 border border-[#dcd9d0] shadow-xl text-center">
+                        <div className="flex justify-center mb-4 text-[#1a1a1a]">
+                            <Icon name="book-open" size={48} />
+                        </div>
                         <h1 className="crimson text-4xl font-bold mb-2">Reading Journal</h1>
                         <p className="text-gray-500 italic mb-8 crimson">A shared space for literary memory.</p>
                         
                         <div className="space-y-4">
                             <div className="text-left">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1">
                                     Your Handle (Name)
                                 </label>
                                 <input 
@@ -376,7 +381,7 @@
                                     value={handle} 
                                     onChange={e => setHandle(e.target.value)} 
                                     className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
-                                    placeholder="e.g. robert"
+                                    placeholder="e.g. robert-smith"
                                 />
                                 {handle && !isChecking && userExists === true && (
                                     <p className="text-[10px] text-green-600 mt-1 font-bold">● Found existing journal</p>
@@ -390,8 +395,8 @@
                             </div>
 
                             <div className="text-left relative">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
-                                    Secret Key {userExists === true ? "(Leave blank to Read-Only)" : "(Required for new journal)"}
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1">
+                                    Secret Key (Required to create new or edit existing journal)
                                 </label>
                                 <div className="relative">
                                     <input 
@@ -411,6 +416,10 @@
                                     </button>
                                 </div>
                             </div>
+
+                            <p className="text-[10px] text-gray-400 text-center pt-2">
+                                Field entries can be lowercase letters, numbers, dashes, or underscores.
+                            </p>
 
                             <button onClick={handleGo} className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors">
                                 {userExists === false ? "Create Journal" : "Enter Journal"}
