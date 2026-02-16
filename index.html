@@ -448,7 +448,7 @@
                 title: '', 
                 author: '', 
                 monthFinished: MONTHS[new Date().getMonth()], 
-                rating: 5, 
+                rating: 0, 
                 classification: BOOK_CLASSIFICATIONS[0], 
                 status: 'finished'
             });
@@ -742,35 +742,56 @@
                                 <div className="grid grid-cols-1 gap-4">
                                     {currentReads.map(book => (
     <div key={book.id} className="bg-white border-l-4 border-[#9b7e46] p-6 shadow-sm flex items-start gap-6">
-        <div className="shrink-0 w-24 group relative mini-frame">
-            <div className="journal-frame flex items-center justify-center bg-[#fdfaf3]">
-                <img src={book.imageUrl || defaultGeometricArt} alt="Cover" className="sketch-content" />
+        {editingId === book.id && !isReadOnly ? (
+            <div className="w-full">
+                <h3 className="crimson text-xl font-bold uppercase mb-6 flex justify-between items-center">Edit Entry <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-black"><Icon name="x" /></button></h3>
+                <form onSubmit={handleUpdateEntry} className="space-y-6">
+                        <div className="flex justify-end"><select value={editingBook.status || 'finished'} onChange={e => setEditingBook({...editingBook, status: e.target.value})} className="text-[10px] font-bold uppercase tracking-widest bg-gray-100 p-2 rounded"><option value="finished">Finished</option><option value="reading">Currently Reading</option></select></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Title</label><input className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={editingBook.title} onChange={e => setEditingBook({...editingBook, title: e.target.value})} /></div>
+                        <div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Author</label><input className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={editingBook.author} onChange={e => setEditingBook({...editingBook, author: e.target.value})} /></div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Classification</label><select className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={editingBook.classification || BOOK_CLASSIFICATIONS[0]} onChange={e => setEditingBook({...editingBook, classification: e.target.value})}>{BOOK_CLASSIFICATIONS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                            {editingBook.status !== 'reading' && (<><div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Mood Tag</label><input className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={editingBook.tag || ''} onChange={e => setEditingBook({...editingBook, tag: e.target.value})} /></div><div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Rating</label><div className="flex gap-1 pt-1">{[1,2,3,4,5].map(s => (<button type="button" key={s} onClick={() => setEditingBook({...editingBook, rating: s})}><Icon name="star" size={20} fill={s <= editingBook.rating ? "#9b7e46" : "none"} className={s <= editingBook.rating ? "text-[#9b7e46]" : "text-[#dcd9d0]"} /></button>))}</div></div></>)}
+                        </div>
+                        {editingBook.status !== 'reading' && (<div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Reflection</label><textarea rows={10} className="w-full p-4 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46] crimson italic custom-scrollbar" value={editingBook.review || ''} onChange={e => setEditingBook({...editingBook, review: e.target.value})} /></div>)}
+                        <div className="flex gap-4"><button type="submit" className="flex-1 bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-all flex items-center justify-center gap-2"><Icon name="save" size={16} /> Save Changes</button><button type="button" onClick={() => setEditingId(null)} className="px-6 py-3 border border-[#dcd9d0] text-xs font-bold uppercase hover:bg-gray-50">Cancel</button></div>
+                </form>
+            </div>
+        ) : (
+            <>
+                <div className="shrink-0 w-24 group relative mini-frame">
+                    <div className="journal-frame flex items-center justify-center bg-[#fdfaf3]">
+                        <img src={book.imageUrl || defaultGeometricArt} alt="Cover" className="sketch-content" />
+                        {!isReadOnly && (
+                            <div className="absolute inset-0 bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                                <button onClick={() => { setActiveBook({ id: book.id }); fileInputRef.current.click(); }} className="text-black hover:text-[#9b7e46] transition-colors" title="Upload Image"><Icon name="upload" size={14} /></button>
+                                <button onClick={() => handleFetchCover(book)} disabled={generatingImageId === book.id} className="text-black hover:text-[#9b7e46] transition-colors" title="Fetch Cover">
+                                    {generatingImageId === book.id ? <div className="animate-spin h-3 w-3 border border-black border-t-transparent rounded-full" /> : <Icon name="search" size={14} />}
+                                </button>
+                                <button onClick={() => handleRevertCover(book)} className="text-gray-400 hover:text-black transition-colors" title="Revert to Default"><Icon name="undo" size={14} /></button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="flex-1">
+                    <h4 className="crimson text-2xl font-bold leading-none mb-1">{book.title}</h4>
+                    <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">{book.author}</p>
+                    <div className="mt-2 text-[10px] text-gray-400 font-bold uppercase">{book.classification}</div>
+                </div>
                 {!isReadOnly && (
-                    <div className="absolute inset-0 bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
-                        <button onClick={() => { setActiveBook({ id: book.id }); fileInputRef.current.click(); }} className="text-black hover:text-[#9b7e46] transition-colors" title="Upload Image"><Icon name="upload" size={14} /></button>
-                        <button onClick={() => handleFetchCover(book)} disabled={generatingImageId === book.id} className="text-black hover:text-[#9b7e46] transition-colors" title="Fetch Cover">
-                            {generatingImageId === book.id ? <div className="animate-spin h-3 w-3 border border-black border-t-transparent rounded-full" /> : <Icon name="search" size={14} />}
-                        </button>
-                        <button onClick={() => handleRevertCover(book)} className="text-gray-400 hover:text-black transition-colors" title="Revert to Default"><Icon name="undo" size={14} /></button>
+                    <div className="flex flex-col gap-2 shrink-0">
+                        <button onClick={() => { setEditingId(book.id); setEditingBook({...book}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors" title="Edit Entry"><Icon name="edit-3" size={16} /></button>
+                        <button onClick={() => { setEditingId(book.id); setEditingBook({...book, status: 'finished', monthFinished: MONTHS[new Date().getMonth()], rating: 5 }); }} className="text-gray-300 hover:text-green-600 transition-colors" title="Mark as Finished"><Icon name="check" size={16} /></button>
+                        {deleteConfirmId === book.id ? (
+                            <button onClick={() => handleRemoveEntry(book.id)} className="bg-red-600 text-white px-2 py-0.5 text-[10px] uppercase rounded hover:bg-red-700">Delete?</button>
+                        ) : (
+                            <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors" title="Delete Entry"><Icon name="trash-2" size={16} /></button>
+                        )}
                     </div>
                 )}
-            </div>
-        </div>
-        <div className="flex-1">
-            <h4 className="crimson text-2xl font-bold leading-none mb-1">{book.title}</h4>
-            <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">{book.author}</p>
-            <div className="mt-2 text-[10px] text-gray-400 font-bold uppercase">{book.classification}</div>
-        </div>
-        {!isReadOnly && (
-            <div className="flex flex-col gap-2 shrink-0">
-                <button onClick={() => { setEditingId(book.id); setEditingBook({...book}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors" title="Edit Entry"><Icon name="edit-3" size={16} /></button>
-                <button onClick={() => { setEditingId(book.id); setEditingBook({...book, status: 'finished', monthFinished: MONTHS[new Date().getMonth()], rating: 5 }); }} className="text-gray-300 hover:text-green-600 transition-colors" title="Mark as Finished"><Icon name="check" size={16} /></button>
-                {deleteConfirmId === book.id ? (
-                    <button onClick={() => handleRemoveEntry(book.id)} className="bg-red-600 text-white px-2 py-0.5 text-[10px] uppercase rounded hover:bg-red-700">Delete?</button>
-                ) : (
-                    <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors" title="Delete Entry"><Icon name="trash-2" size={16} /></button>
-                )}
-            </div>
+            </>
         )}
     </div>
 ))}
@@ -859,11 +880,18 @@
                                                 )}
                                             </div>
                                             <div className="flex items-center justify-between pt-2">
-                                                {newBook.status === 'finished' ? (<div className="flex items-center gap-3 animate-fade-in">{[1,2,3,4,5].map(s => (<button type="button" key={s} onClick={() => setNewBook({...newBook, rating: s})}><Icon name="star" size={24} fill={s <= newBook.rating ? "#9b7e46" : "none"} className={s <= newBook.rating ? "text-[#9b7e46]" : "text-[#dcd9d0] hover:text-[#9b7e46]"} /></button>))}</div>) : <div></div>}
-                                                <button type="submit" className="bg-[#1a1a1a] text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#9b7e46] transition-colors flex items-center justify-center gap-2 rounded-sm">
-                                                    {newBook.status === 'reading' ? <><Icon name="book-open" size={14} /> Add to Shelf</> : <><Icon name="sparkles" size={14} /> Start Reflection</>}
-                                                </button>
-                                            </div>
+    {newBook.status === 'finished' ? (
+        <div className="flex flex-col animate-fade-in">
+            <div className="flex items-center gap-3">
+                {[1,2,3,4,5].map(s => (<button type="button" key={s} onClick={() => setNewBook({...newBook, rating: s})}><Icon name="star" size={24} fill={s <= newBook.rating ? "#9b7e46" : "none"} className={s <= newBook.rating ? "text-[#9b7e46]" : "text-[#dcd9d0] hover:text-[#9b7e46]"} /></button>))}
+            </div>
+            {newBook.rating === 0 && <span className="text-[10px] text-gray-400 mt-1 italic">Tap stars to rate</span>}
+        </div>
+    ) : <div></div>}
+    <button type="submit" className="bg-[#1a1a1a] text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#9b7e46] transition-colors flex items-center justify-center gap-2 rounded-sm">
+        {newBook.status === 'reading' ? <><Icon name="book-open" size={14} /> Add to Shelf</> : <><Icon name="sparkles" size={14} /> Start Reflection</>}
+    </button>
+</div>
                                         </form>
                                     </section>
                                 )}
