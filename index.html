@@ -291,26 +291,19 @@
         };
 
         // --- LANDING PAGE / LOBBY ---
-        function LandingPage({ onEnter }) {
+        function LandingPage({ onEnter, db }) {
             const [handle, setHandle] = useState("");
             const [key, setKey] = useState("");
             const [showKey, setShowKey] = useState(false);
             const [existingUsers, setExistingUsers] = useState([]);
-            const [db, setDb] = useState(null);
             const [userExists, setUserExists] = useState(null); 
 
             useEffect(() => {
                 const init = async () => {
-                    const { initializeApp, getFirestore, collection, getDocs, getAuth, signInAnonymously } = window.FirebaseSDK;
-                    const app = initializeApp(MY_FIREBASE_CONFIG);
-                    const dbInstance = getFirestore(app);
-                    const authInstance = getAuth(app);
-                    setDb(dbInstance);
-                    
-                    // Sign in silently first to ensure we have permission to read the users list
+                    if (!db) return;
+                    const { collection, getDocs } = window.FirebaseSDK;
                     try {
-                        await signInAnonymously(authInstance);
-                        const snap = await getDocs(collection(dbInstance, 'artifacts', 'reading-journal-2026', 'users'));
+                        const snap = await getDocs(collection(db, 'artifacts', 'reading-journal-2026', 'users'));
                         const users = snap.docs.map(d => d.id);
                         setExistingUsers(users);
                     } catch (e) {
@@ -318,10 +311,10 @@
                     }
                 };
                 init();
-            }, []);
+            }, [db]);
 
             useEffect(() => {
-                if (!handle || !db) {
+                if (!handle) {
                     setUserExists(null);
                     return;
                 }
@@ -331,7 +324,7 @@
                 } else {
                     setUserExists(false);
                 }
-            }, [handle, existingUsers, db]);
+            }, [handle, existingUsers]);
 
             const handleGo = () => {
                 if(!handle) return;
@@ -417,11 +410,9 @@
         }
 
         // --- MAIN APP COMPONENT ---
-        function JournalApp({ userHandle, secretKey }) {
+        function JournalApp({ userHandle, secretKey, db, currentUser }) {
             // AUTH / USER STATE
-            const [user, setUser] = useState(null);
             const [isReadOnly, setIsReadOnly] = useState(true);
-            const [db, setDb] = useState(null);
 
             // APP DATA STATE
             const [books, setBooks] = useState([]);
@@ -454,48 +445,42 @@
             const searchInputRef = useRef(null);
             const defaultGeometricArt = useMemo(() => generatePlaceholderCover(), []);
 
-            // --- INIT & AUTH LOGIC ---
+            // --- PERMISSION CHECK LOGIC ---
             useEffect(() => {
-                const initFirebase = async () => {
-                    const { initializeApp, getAuth, signInAnonymously, getFirestore, onAuthStateChanged, doc, setDoc, getDoc } = window.FirebaseSDK;
-                    const appInstance = initializeApp(MY_FIREBASE_CONFIG);
-                    const authInstance = getAuth(appInstance);
-                    const dbInstance = getFirestore(appInstance);
-                    setDb(dbInstance);
+                const checkPermissions = async () => {
+                    const { doc, setDoc, getDoc } = window.FirebaseSDK;
+                    if (!db || !currentUser) return;
 
-                    // Anonymous Auth for Firebase Access
-                    await signInAnonymously(authInstance);
-
-                    onAuthStateChanged(authInstance, async (u) => {
-                        setUser(u);
-                        if(u) {
-                            // Check Secret Key Logic for Read/Write status
-                            // We store a config doc at artifacts/reading-journal-2026/users/{userHandle}
-                            const userDocRef = doc(dbInstance, 'artifacts', 'reading-journal-2026', 'users', userHandle);
-                            const userSnap = await getDoc(userDocRef); // Need to import getDoc? handled via SDK obj
-
-                            if (!userSnap.exists()) {
-                                // New User? Only allowed if they provided a key to set it with.
-                                if (secretKey) {
-                                    await setDoc(userDocRef, { secretKey: secretKey, createdAt: Date.now() });
-                                    setIsReadOnly(false);
-                                } else {
-                                    // Viewing a non-existent user without a key -> Read Only empty state
-                                    setIsReadOnly(true);
-                                }
+                    const userDocRef = doc(db, 'artifacts', 'reading-journal-2026', 'users', userHandle);
+                    
+                    try {
+                        const userSnap = await getDoc(userDocRef);
+                        
+                        if (!userSnap.exists()) {
+                            // NEW USER LOGIC
+                            if (secretKey) {
+                                await setDoc(userDocRef, { secretKey: secretKey, createdAt: Date.now() });
+                                setIsReadOnly(false);
                             } else {
-                                const data = userSnap.data();
-                                if (data.secretKey === secretKey) {
-                                    setIsReadOnly(false);
-                                } else {
-                                    setIsReadOnly(true);
-                                }
+                                setIsReadOnly(true);
+                            }
+                        } else {
+                            // EXISTING USER LOGIC
+                            const data = userSnap.data();
+                            if (data.secretKey === secretKey) {
+                                setIsReadOnly(false);
+                            } else {
+                                setIsReadOnly(true);
                             }
                         }
-                    });
+                    } catch (e) {
+                        console.error("Permission check failed", e);
+                        // If checking permission fails, default to read-only but don't hang
+                        setIsReadOnly(true);
+                    }
                 };
-                initFirebase();
-            }, [userHandle, secretKey]); 
+                checkPermissions();
+            }, [userHandle, secretKey, db, currentUser]); 
 
             // Focus search
             useEffect(() => {
@@ -504,9 +489,8 @@
 
             // --- DATA SYNC ---
             useEffect(() => {
-                if (!user || !db) return;
+                if (!db || !currentUser) return;
                 const { collection, onSnapshot } = window.FirebaseSDK;
-                // DYNAMIC PATH BASED ON HANDLE
                 const booksCol = collection(db, 'artifacts', 'reading-journal-2026', 'users', userHandle, 'books');
                 
                 const unsubscribe = onSnapshot(booksCol, (snapshot) => {
@@ -516,10 +500,11 @@
                     setErrorMessage(null);
                 }, (err) => {
                     console.error("Firestore Error:", err);
+                    setErrorMessage("Unable to load journal data. Check connection.");
                     setLoading(false);
                 });
                 return () => unsubscribe();
-            }, [user, db, userHandle]);
+            }, [db, currentUser, userHandle]);
 
             // --- DERIVED STATE ---
             const { currentReads, finishedBooks } = useMemo(() => {
@@ -995,6 +980,37 @@
         // --- ROOT WRAPPER ---
         function App() {
             const [urlParams, setUrlParams] = useState(null);
+            const [db, setDb] = useState(null);
+            const [currentUser, setCurrentUser] = useState(null);
+            const [authError, setAuthError] = useState(null);
+
+            useEffect(() => {
+                const initApp = async () => {
+                    try {
+                        const { initializeApp, getFirestore, getAuth, signInAnonymously, onAuthStateChanged } = window.FirebaseSDK;
+                        const app = initializeApp(MY_FIREBASE_CONFIG);
+                        const dbInstance = getFirestore(app);
+                        const authInstance = getAuth(app);
+                        setDb(dbInstance);
+
+                        // Ensure we have a user BEFORE doing anything else
+                        try {
+                            await signInAnonymously(authInstance);
+                        } catch (e) {
+                            console.error("Auth Failed", e);
+                            setAuthError(e.message);
+                            return; 
+                        }
+
+                        onAuthStateChanged(authInstance, (u) => {
+                            setCurrentUser(u);
+                        });
+                    } catch (err) {
+                        setAuthError("Failed to initialize app.");
+                    }
+                };
+                initApp();
+            }, []);
 
             useEffect(() => {
                 const params = new URLSearchParams(window.location.search);
@@ -1015,11 +1031,35 @@
                 setUrlParams({ user: handle, key });
             };
 
-            if (!urlParams) {
-                return <LandingPage onEnter={handleEnter} />;
+            if (authError) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded shadow-lg max-w-md text-center">
+                            <h2 className="font-bold mb-2">Connection Error</h2>
+                            <p className="text-sm">{authError}</p>
+                            <p className="text-xs mt-4 text-gray-500">Please refresh the page or try again later.</p>
+                        </div>
+                    </div>
+                );
             }
 
-            return <JournalApp userHandle={urlParams.user} secretKey={urlParams.key} />;
+            // Show a global loading state until Firebase is ready
+            if (!db || !currentUser) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="flex flex-col items-center gap-4 text-gray-400 animate-pulse">
+                            <Icon name="rotate-cw" className="animate-spin" size={24} />
+                            <p className="text-xs uppercase tracking-widest font-bold">Connecting to Library...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!urlParams) {
+                return <LandingPage onEnter={handleEnter} db={db} />;
+            }
+
+            return <JournalApp userHandle={urlParams.user} secretKey={urlParams.key} db={db} currentUser={currentUser} />;
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
