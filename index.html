@@ -81,9 +81,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, query, orderBy, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, query, orderBy, setDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        window.FirebaseSDK = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, query, orderBy, setDoc, getDocs };
+        window.FirebaseSDK = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, query, orderBy, setDoc, getDocs, getDoc };
     </script>
 
     <script type="text/babel">
@@ -132,7 +132,7 @@
             "What specific curiosity does this leave you with for your next read?"
         ];
 
-        // --- ICONS (Same as before) ---
+        // --- ICONS ---
         const Icon = ({ name, size = 18, className = "", fill = "none" }) => {
             const icons = {
                 "star": <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />,
@@ -160,7 +160,9 @@
                 "undo": <path d="M3 7v6h6M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />,
                 "users": <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
                 "lock": <><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
-                "key": <><path d="m21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></>
+                "key": <><path d="m21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></>,
+                "eye": <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>,
+                "eye-off": <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" /><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" x2="22" y1="2" y2="22" /></>
             };
             return (
                 <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -169,7 +171,7 @@
             );
         };
 
-        // --- UTILS (Same as before) ---
+        // --- UTILS ---
         const fetchWithRetry = async (url, options, maxRetries = 3) => {
             let delay = 1000;
             for (let i = 0; i < maxRetries; i++) {
@@ -288,121 +290,131 @@
             return canvas.toDataURL('image/jpeg', 0.85);
         };
 
- // --- LANDING PAGE / LOBBY ---
-function LandingPage({ onEnter }) {
-    const [handle, setHandle] = useState("");
-    const [key, setKey] = useState("");
-    const [existingUsers, setExistingUsers] = useState([]);
-    const [db, setDb] = useState(null);
-    const [isChecking, setIsChecking] = useState(false);
-    const [userExists, setUserExists] = useState(null); // null = unknown, true = exists, false = new
+        // --- LANDING PAGE / LOBBY ---
+        function LandingPage({ onEnter }) {
+            const [handle, setHandle] = useState("");
+            const [key, setKey] = useState("");
+            const [showKey, setShowKey] = useState(false);
+            const [existingUsers, setExistingUsers] = useState([]);
+            const [db, setDb] = useState(null);
+            const [userExists, setUserExists] = useState(null); 
 
-    useEffect(() => {
-        const init = async () => {
-            const { initializeApp, getFirestore, collection, getDocs } = window.FirebaseSDK;
-            const app = initializeApp(MY_FIREBASE_CONFIG);
-            const dbInstance = getFirestore(app);
-            setDb(dbInstance);
-            
-            try {
-                const snap = await getDocs(collection(dbInstance, 'artifacts', 'reading-journal-2026', 'users'));
-                const users = snap.docs.map(d => d.id);
-                setExistingUsers(users);
-            } catch (e) {
-                console.error("Could not fetch users", e);
-            }
-        };
-        init();
-    }, []);
+            useEffect(() => {
+                const init = async () => {
+                    const { initializeApp, getFirestore, collection, getDocs, getAuth, signInAnonymously } = window.FirebaseSDK;
+                    const app = initializeApp(MY_FIREBASE_CONFIG);
+                    const dbInstance = getFirestore(app);
+                    const authInstance = getAuth(app);
+                    setDb(dbInstance);
+                    
+                    // Sign in silently first to ensure we have permission to read the users list
+                    try {
+                        await signInAnonymously(authInstance);
+                        const snap = await getDocs(collection(dbInstance, 'artifacts', 'reading-journal-2026', 'users'));
+                        const users = snap.docs.map(d => d.id);
+                        setExistingUsers(users);
+                    } catch (e) {
+                        console.error("Could not fetch users", e);
+                    }
+                };
+                init();
+            }, []);
 
-    // Check if user exists when they type a handle
-    useEffect(() => {
-        if (!handle || !db) {
-            setUserExists(null);
-            return;
-        }
-        const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (existingUsers.includes(cleanHandle)) {
-            setUserExists(true);
-        } else {
-            setUserExists(false);
-        }
-    }, [handle, existingUsers, db]);
+            useEffect(() => {
+                if (!handle || !db) {
+                    setUserExists(null);
+                    return;
+                }
+                const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (existingUsers.includes(cleanHandle)) {
+                    setUserExists(true);
+                } else {
+                    setUserExists(false);
+                }
+            }, [handle, existingUsers, db]);
 
-    const handleGo = () => {
-        if(!handle) return;
-        const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
-        
-        // PROTECT AGAINST ZOMBIE JOURNALS
-        if (userExists === false && !key) {
-            alert("To create a NEW journal, you must set a Secret Key so you can edit it later!");
-            return;
-        }
-        
-        onEnter(cleanHandle, key);
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="bg-white max-w-md w-full p-8 border border-[#dcd9d0] shadow-xl text-center">
-                <h1 className="crimson text-4xl font-bold mb-2">Reading Journal</h1>
-                <p className="text-gray-500 italic mb-8 crimson">A shared space for literary memory.</p>
+            const handleGo = () => {
+                if(!handle) return;
+                const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
                 
-                <div className="space-y-4">
-                    <div className="text-left">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
-                            Your Handle (Name)
-                        </label>
-                        <input 
-                            type="text" 
-                            value={handle} 
-                            onChange={e => setHandle(e.target.value)} 
-                            className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
-                            placeholder="e.g. robert"
-                        />
-                        {/* HELPFUL HINT TEXT */}
-                        {handle && userExists === true && (
-                            <p className="text-[10px] text-green-600 mt-1 font-bold">● Found existing journal</p>
-                        )}
-                        {handle && userExists === false && (
-                            <p className="text-[10px] text-[#9b7e46] mt-1 font-bold">● Creating new journal</p>
-                        )}
-                    </div>
+                if (userExists === false && !key) {
+                    alert("To create a NEW journal, you must set a Secret Key so you can edit it later!");
+                    return;
+                }
+                
+                onEnter(cleanHandle, key);
+            };
 
-                    <div className="text-left">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
-                            Secret Key {userExists === true ? "(Leave blank to Read-Only)" : "(Required for new journal)"}
-                        </label>
-                        <input 
-                            type="password" 
-                            value={key} 
-                            onChange={e => setKey(e.target.value)} 
-                            className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
-                            placeholder={userExists === false ? "Create a password..." : "Enter key to edit..."}
-                        />
-                    </div>
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="bg-white max-w-md w-full p-8 border border-[#dcd9d0] shadow-xl text-center">
+                        <h1 className="crimson text-4xl font-bold mb-2">Reading Journal</h1>
+                        <p className="text-gray-500 italic mb-8 crimson">A shared space for literary memory.</p>
+                        
+                        <div className="space-y-4">
+                            <div className="text-left">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
+                                    Your Handle (Name)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    value={handle} 
+                                    onChange={e => setHandle(e.target.value)} 
+                                    className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 outline-none focus:border-[#9b7e46]"
+                                    placeholder="e.g. robert"
+                                />
+                                {handle && userExists === true && (
+                                    <p className="text-[10px] text-green-600 mt-1 font-bold">● Found existing journal</p>
+                                )}
+                                {handle && userExists === false && (
+                                    <p className="text-[10px] text-[#9b7e46] mt-1 font-bold">● Creating new journal</p>
+                                )}
+                            </div>
 
-                    <button onClick={handleGo} className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors">
-                        {userExists === false ? "Create Journal" : "Enter Journal"}
-                    </button>
-                </div>
+                            <div className="text-left relative">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
+                                    Secret Key {userExists === true ? "(Leave blank to Read-Only)" : "(Required for new journal)"}
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type={showKey ? "text" : "password"} 
+                                        value={key} 
+                                        onChange={e => setKey(e.target.value)} 
+                                        className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 pr-10 outline-none focus:border-[#9b7e46]"
+                                        placeholder={userExists === false ? "Create a password..." : "Enter key to edit..."}
+                                    />
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowKey(!showKey)} 
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors"
+                                        title={showKey ? "Hide key" : "Show key"}
+                                    >
+                                        <Icon name={showKey ? "eye-off" : "eye"} size={16} />
+                                    </button>
+                                </div>
+                            </div>
 
-                {existingUsers.length > 0 && (
-                    <div className="mt-8 pt-8 border-t border-[#dcd9d0]">
-                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Browsing Library</h3>
-                        <div className="flex flex-wrap gap-2 justify-center">
-                            {existingUsers.map(u => (
-                                <button key={u} onClick={() => setHandle(u)} className="bg-gray-100 hover:bg-[#fdfaf3] border border-transparent hover:border-[#dcd9d0] px-3 py-1 rounded text-xs text-gray-600 transition-colors">
-                                    {u}
-                                </button>
-                            ))}
+                            <button onClick={handleGo} className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors">
+                                {userExists === false ? "Create Journal" : "Enter Journal"}
+                            </button>
                         </div>
+
+                        {existingUsers.length > 0 && (
+                            <div className="mt-8 pt-8 border-t border-[#dcd9d0]">
+                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Browsing Library</h3>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    {existingUsers.map(u => (
+                                        <button key={u} onClick={() => setHandle(u)} className="bg-gray-100 hover:bg-[#fdfaf3] border border-transparent hover:border-[#dcd9d0] px-3 py-1 rounded text-xs text-gray-600 transition-colors">
+                                            {u}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
-        </div>
-    );
-}
+                </div>
+            );
+        }
 
         // --- MAIN APP COMPONENT ---
         function JournalApp({ userHandle, secretKey }) {
@@ -483,7 +495,7 @@ function LandingPage({ onEnter }) {
                     });
                 };
                 initFirebase();
-            }, [userHandle, secretKey]); // Re-run if props change (unlikely in this structure but safe)
+            }, [userHandle, secretKey]); 
 
             // Focus search
             useEffect(() => {
