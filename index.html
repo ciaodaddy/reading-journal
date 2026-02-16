@@ -308,8 +308,8 @@
         };
 
         // --- FEEDBACK CONFIG & COMPONENT ---
-        const CONTACT_USER = "your-email-user"; // UPDATE THIS
-        const CONTACT_DOMAIN = "your-email-domain.com"; // UPDATE THIS
+        const CONTACT_USER = "roblewczyk"; // UPDATE THIS WITH YOUR EMAIL USER (e.g., 'robert')
+        const CONTACT_DOMAIN = "gmail.com"; // UPDATE THIS WITH YOUR EMAIL DOMAIN (e.g., 'gmail.com')
         
         function FeedbackModal({ isOpen, onClose }) {
             const [msg, setMsg] = useState("");
@@ -755,11 +755,7 @@
             return (
                 <div className="min-h-screen py-10 px-4 pb-32 text-ink-black relative">
                     {/* TOP BAR */}
-                    <div className="fixed top-0 left-0 right-0 p-2 flex justify-between items-start z-40 pointer-events-none">
-                         <div className="pointer-events-auto bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs flex gap-2">
-                             <span className="font-bold uppercase tracking-widest text-[#9b7e46]">{userHandle}</span>
-                             {isReadOnly ? <Icon name="lock" size={14} className="text-gray-400"/> : <Icon name="key" size={14} className="text-green-600"/>}
-                         </div>
+                    <div className="fixed top-0 left-0 right-0 p-2 flex justify-end items-start z-40 pointer-events-none">
                          <div className="pointer-events-auto flex gap-2">
                              <a href="?" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Go to Lobby">Lobby</a>
                              <button onClick={() => setIsFeedbackOpen(true)} className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Send Feedback"><Icon name="send" size={14} /></button>
@@ -769,6 +765,12 @@
 
                     <div className="max-w-2xl mx-auto mt-8">
                         <header className="text-center border-b border-[#1a1a1a] pb-8 mb-10">
+                            {/* MOVED USER HANDLE TO CENTER */}
+                            <div className="inline-flex items-center gap-2 bg-white border border-[#dcd9d0] px-4 py-1.5 rounded-full mb-6 shadow-sm">
+                                <span className="text-xs font-bold uppercase tracking-widest text-[#9b7e46]">{userHandle}</span>
+                                {isReadOnly ? <Icon name="lock" size={12} className="text-gray-400"/> : <Icon name="key" size={12} className="text-green-600"/>}
+                            </div>
+                            
                             <h1 className="crimson text-4xl md:text-5xl font-bold tracking-tight">2026 Reading Journal</h1>
                             <p className="crimson italic text-lg text-gray-600 mt-2">Classified memory anchors for the literary journey.</p>
                             
@@ -996,11 +998,11 @@
                                                         <div className="flex flex-col items-end gap-2 shrink-0">
                                                             {!isReadOnly && (
                                                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, classification: book.classification || BOOK_CLASSIFICATIONS[0]}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors"><Icon name="edit-3" size={14} /></button>
+                                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, classification: book.classification || BOOK_CLASSIFICATIONS[0]}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors" title="Edit Entry"><Icon name="edit-3" size={16} /></button>
                                                                     {deleteConfirmId === book.id ? (
                                                                         <button onClick={() => handleRemoveEntry(book.id)} className="bg-red-600 text-white px-2 py-0.5 text-[10px] uppercase rounded hover:bg-red-700">Delete?</button>
                                                                     ) : (
-                                                                        <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors"><Icon name="trash-2" size={14} /></button>
+                                                                        <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors" title="Delete Entry"><Icon name="trash-2" size={16} /></button>
                                                                     )}
                                                                 </div>
                                                             )}
