@@ -138,6 +138,8 @@
             "Memoir / Biography", "History / Politics", "Philosophy / Religion", "Science / Nature",
             "Essays / Poetry", "Current Affairs"
         ];
+        
+        // Updated Questions
         const STANDARDIZED_QUESTIONS = [
             "Describe your feelings and perspectives when you finished this book, compared to how you felt before beginning to read it.",
             "At what point in the book did your initial perspective or expectation change?",
@@ -146,6 +148,7 @@
             "Assign a sensory characteristic to this book (e.g. its texture, sound, taste, or smell), and explain why that is.",
             "What specific curiosity in regard to the author, topic, or genre, does this book leave you with?"
         ];
+
         // --- ICONS ---
         const Icon = ({ name, size = 18, className = "", fill = "none" }) => {
             const icons = {
@@ -305,9 +308,8 @@
         };
 
         // --- FEEDBACK CONFIG & COMPONENT ---
-        // Split your email to prevent simple bots from scraping it from the source code
-        const CONTACT_USER = "yourname"; // Change this
-        const CONTACT_DOMAIN = "gmail.com"; // Change this
+        const CONTACT_USER = "your-email-user"; // UPDATE THIS
+        const CONTACT_DOMAIN = "your-email-domain.com"; // UPDATE THIS
         
         function FeedbackModal({ isOpen, onClose }) {
             const [msg, setMsg] = useState("");
@@ -318,7 +320,6 @@
                 const email = `${CONTACT_USER}@${CONTACT_DOMAIN}`;
                 const subject = encodeURIComponent("Journal App Feedback");
                 const body = encodeURIComponent(msg);
-                // Opens the user's default mail client
                 window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
                 onClose();
             };
@@ -343,6 +344,7 @@
                 </div>
             );
         }
+
         // --- LANDING PAGE / LOBBY ---
         function LandingPage({ onEnter, db }) {
             const [handle, setHandle] = useState("");
@@ -461,19 +463,6 @@
                                 {userExists === false ? "Create Journal" : "Enter Journal"}
                             </button>
                         </div>
-
-                        {existingUsers.length > 0 && (
-                            <div className="mt-8 pt-8 border-t border-[#dcd9d0]">
-                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Browsing Library</h3>
-                                <div className="flex flex-wrap gap-2 justify-center">
-                                    {existingUsers.map(u => (
-                                        <button key={u} onClick={() => setHandle(u)} className="bg-gray-100 hover:bg-[#fdfaf3] border border-transparent hover:border-[#dcd9d0] px-3 py-1 rounded text-xs text-gray-600 transition-colors">
-                                            {u}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                         
                         <div className="mt-8">
                             <button onClick={() => setIsFeedbackOpen(true)} className="text-[10px] text-gray-300 hover:text-gray-500 uppercase tracking-widest font-bold">Feedback</button>
