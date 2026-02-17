@@ -683,7 +683,7 @@
                 const { addDoc } = window.FirebaseSDK;
                 const dataStr = STANDARDIZED_QUESTIONS.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
                 try {
-                    const review = await callGemini(`Synthesize a narrative reading journal entry for "${activeBook.title}" by ${activeBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI. Focus on the specific reflections in these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
+                    const review = await callGemini(`Synthesize a narrative reading journal entry for "${activeBook.title}" by ${activeBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI. CRITICAL INSTRUCTION: Do not reuse phrases from the questions (e.g., "My perspective changed when..."). Instead, weave the insights into a natural, cohesive narrative flow. Focus on the specific reflections in these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
                     const tagRaw = await callGemini(`Provide a punchy 2-4 word atmospheric tag for: ${review}`);
                     const tag = tagRaw.replace(/[".]/g, '').trim();
                     const nextOrder = books.length > 0 ? Math.max(...books.map(b => b.order ?? 0)) + 1 : 0;
@@ -935,7 +935,7 @@
                                             </form>
                                         </div>
                                     ) : (
-                                        <div className="p-8 md:p-12 border border-[#dcd9d0] bg-white relative transition-all group hover:shadow-lg">
+                                        <div className="p-8 md:p-12 border border-[#dcd9d0] border-l-4 border-l-[#9b7e46] bg-white relative transition-all group hover:shadow-lg">
                                             <div className="flex gap-6">
                                                 {!searchTerm && !isReadOnly && (
                                                     <div className="hidden md:flex flex-col items-center gap-1 pt-1">
