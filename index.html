@@ -90,8 +90,9 @@
         const { useState, useEffect, useMemo, useRef } = React;
         
         // --- CONFIGURATION ---
+        // Fallback config for GitHub Pages (Production)
         const MY_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyAN3ri_oJChbcWCmJEngKsGewNbKNRDUII",
+            apiKey: "AIzaSyAj8BIwFHJ-VrOZFeGPRgUF1LSeI03iHzI",
             authDomain: "book-listing-web-app.firebaseapp.com",
             projectId: "book-listing-web-app",
             storageBucket: "book-listing-web-app.firebasestorage.app",
@@ -100,6 +101,7 @@
             measurementId: "G-0Z5HESVLP5"
         };
 
+        // Determine Config based on Environment (Canvas vs Production)
         const getFirebaseConfig = () => {
             try {
                 if (typeof __firebase_config !== 'undefined') {
@@ -113,11 +115,12 @@
 
         const APP_ID = (typeof __app_id !== 'undefined' && __app_id) ? __app_id : 'reading-journal-2026';
 
-        const GEMINI_API_KEY = "AIzaSyAN3ri_oJChbcWCmJEngKsGewNbKNRDUII";
+        const GEMINI_API_KEY = "AIzaSyCZuPrskD5WDVA0R51RAe2bv4hdg6yn82I";
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         
-        // --- FEEDBACK CONFIGURATION ---
+        // --- FEEDBACK & FAQ CONFIGURATION ---
         const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform";
+        const FAQ_URL = "https://docs.google.com/document/d/1i3UNQQZw0Aj8gvGGZUhydBpOv1hQveUWPmUoGsA_HQ8"; // <--- UPDATE THIS
 
         const callGemini = async (promptText) => {
             const activeKey = (typeof __gemini_api_key !== 'undefined' && __gemini_api_key) ? __gemini_api_key : GEMINI_API_KEY;
@@ -132,6 +135,7 @@
             return res.candidates[0].content.parts[0].text;
         };
 
+        // Standardized lists
         const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const BOOK_CLASSIFICATIONS = [
             "Literary Fiction", "Historical Fiction", "Sci-Fi / Fantasy", "Mystery / Thriller",
@@ -313,6 +317,7 @@
             const [showKey, setShowKey] = useState(false);
             const [userExists, setUserExists] = useState(null); 
             const [isChecking, setIsChecking] = useState(false); 
+            const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
             // Debounce check for user existence
             useEffect(() => {
@@ -367,7 +372,11 @@
                             <Icon name="book-open" size={48} />
                         </div>
                         <h1 className="crimson text-4xl font-bold mb-2">Reading Journal</h1>
-                        <p className="text-gray-500 italic mb-8 crimson">A shared space for literary memory.</p>
+                        <p className="text-gray-500 italic mb-4 crimson">A shared space for literary memory.</p>
+                        
+                        <div className="mb-8">
+                            <a href={FAQ_URL} target="_blank" className="text-[10px] font-bold uppercase tracking-widest text-[#9b7e46] hover:text-black border-b border-[#9b7e46]/30 hover:border-black pb-0.5 transition-all">FAQ | Instructions</a>
+                        </div>
                         
                         <div className="space-y-4">
                             <div className="text-left">
@@ -455,6 +464,7 @@
                 status: 'finished'
             });
             const [isInterviewOpen, setIsInterviewOpen] = useState(false);
+            const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
             const [editingId, setEditingId] = useState(null);
             const [editingBook, setEditingBook] = useState(null);
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
@@ -678,7 +688,6 @@
             };
 
             const finalizeReview = async () => {
-                if (!activeBook) return;
                 setIsGenerating(true);
                 const { addDoc } = window.FirebaseSDK;
                 const dataStr = STANDARDIZED_QUESTIONS.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
@@ -961,11 +970,12 @@
                                                         <div className="flex flex-col items-end gap-2 shrink-0">
                                                             {!isReadOnly && (
                                                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, classification: book.classification || BOOK_CLASSIFICATIONS[0]}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors"><Icon name="edit-3" size={14} /></button>
+                                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, classification: book.classification || BOOK_CLASSIFICATIONS[0]}); }} className="text-gray-300 hover:text-[#9b7e46] transition-colors" title="Edit Entry"><Icon name="edit-3" size={16} /></button>
+                                                                    <button onClick={() => { setEditingId(book.id); setEditingBook({...book, status: 'finished', monthFinished: MONTHS[new Date().getMonth()], rating: 5 }); }} className="text-gray-300 hover:text-green-600 transition-colors" title="Mark as Finished"><Icon name="check" size={16} /></button>
                                                                     {deleteConfirmId === book.id ? (
                                                                         <button onClick={() => handleRemoveEntry(book.id)} className="bg-red-600 text-white px-2 py-0.5 text-[10px] uppercase rounded hover:bg-red-700">Delete?</button>
                                                                     ) : (
-                                                                        <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors"><Icon name="trash-2" size={14} /></button>
+                                                                        <button onClick={() => setDeleteConfirmId(book.id)} className="text-gray-300 hover:text-red-600 transition-colors" title="Delete Entry"><Icon name="trash-2" size={16} /></button>
                                                                     )}
                                                                 </div>
                                                             )}
