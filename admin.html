@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Librarian Dashboard | 2026 Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <style>
+        :root { --paper-bg: #fdfaf3; --ink-black: #1a1a1a; --accent-gold: #9b7e46; }
+        body { background-color: var(--paper-bg); color: var(--ink-black); font-family: 'Inter', sans-serif; }
+        .crimson { font-family: 'Crimson Pro', serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.FirebaseSDK = { initializeApp, getAuth, signInAnonymously, getFirestore, collection, getDocs, doc, getDoc };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- CONFIGURATION (MATCHES YOUR MAIN APP) ---
+        const API_KEY_PART_A = "AIzaSy"; 
+        const API_KEY_PART_B = "DxvXYVszNZ9dUDTi5s-wJn07ePlCuhxJs"; 
+        const REAL_API_KEY = API_KEY_PART_A + API_KEY_PART_B;
+
+        const FIREBASE_CONFIG = {
+            apiKey: REAL_API_KEY, 
+            authDomain: "book-listing-web-app.firebaseapp.com",
+            projectId: "book-listing-web-app",
+            storageBucket: "book-listing-web-app.firebasestorage.app",
+            messagingSenderId: "475203413153",
+            appId: "1:475203413153:web:ab0dfd7246ea274fd1bce0",
+            measurementId: "G-0Z5HESVLP5"
+        };
+
+        const APP_ID = 'reading-journal-2026'; // Default ID used in main app
+
+        function AdminApp() {
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [password, setPassword] = useState("");
+            const [users, setUsers] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [selectedUser, setSelectedUser] = useState(null);
+            const [userBooks, setUserBooks] = useState([]);
+            const [loadingBooks, setLoadingBooks] = useState(false);
+
+            // Simple client-side gate to prevent accidental public viewing
+            const handleLogin = (e) => {
+                e.preventDefault();
+                // You can change this 'admin123' to whatever you want for your personal use
+                if (password === "admin123") {
+                    setIsAuthenticated(true);
+                    fetchUsers();
+                } else {
+                    alert("Incorrect Access Code");
+                }
+            };
+
+            const fetchUsers = async () => {
+                setLoading(true);
+                try {
+                    const { initializeApp, getFirestore, getAuth, signInAnonymously, collection, getDocs } = window.FirebaseSDK;
+                    
+                    // Init Firebase
+                    const app = initializeApp(FIREBASE_CONFIG);
+                    const auth = getAuth(app);
+                    await signInAnonymously(auth); // Must be authed to read DB
+                    const db = getFirestore(app);
+
+                    // 1. Get all Users
+                    const usersRef = collection(db, 'artifacts', APP_ID, 'users');
+                    const snapshot = await getDocs(usersRef);
+                    
+                    const userList = snapshot.docs.map(doc => ({
+                        handle: doc.id,
+                        ...doc.data()
+                    }));
+
+                    setUsers(userList);
+                } catch (e) {
+                    console.error(e);
+                    alert("Error connecting to library: " + e.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const fetchBooksForUser = async (handle) => {
+                setSelectedUser(handle);
+                setLoadingBooks(true);
+                setUserBooks([]);
+                try {
+                    const { getFirestore, collection, getDocs } = window.FirebaseSDK;
+                    // We assume Firebase is already init from fetchUsers
+                    const app = window.FirebaseSDK.initializeApp(FIREBASE_CONFIG); 
+                    const db = getFirestore(app);
+
+                    const booksRef = collection(db, 'artifacts', APP_ID, 'users', handle, 'books');
+                    const snapshot = await getDocs(booksRef);
+                    
+                    const books = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    
+                    // Sort by newest update
+                    books.sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                    setUserBooks(books);
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    setLoadingBooks(false);
+                }
+            };
+
+            if (!isAuthenticated) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <form onSubmit={handleLogin} className="bg-white p-8 border border-[#dcd9d0] shadow-xl text-center max-w-sm w-full">
+                            <h1 className="crimson text-2xl font-bold mb-4">Librarian Access</h1>
+                            <input 
+                                type="password" 
+                                value={password} 
+                                onChange={e => setPassword(e.target.value)} 
+                                placeholder="Access Code (admin123)"
+                                className="w-full p-3 border border-[#dcd9d0] mb-4 outline-none focus:border-[#9b7e46]"
+                            />
+                            <button className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46]">
+                                Enter Archives
+                            </button>
+                        </form>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex flex-col md:flex-row">
+                    {/* SIDEBAR: USER LIST */}
+                    <div className="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-[#dcd9d0] h-screen overflow-y-auto flex flex-col">
+                        <div className="p-6 border-b border-[#dcd9d0] bg-[#fdfaf3] sticky top-0 z-10">
+                            <h2 className="crimson text-xl font-bold text-[#1a1a1a]">Journal Index</h2>
+                            <p className="text-xs uppercase tracking-widest text-gray-500 mt-1">{users.length} Active Journals</p>
+                        </div>
+                        
+                        {loading ? (
+                            <div className="p-6 text-center text-gray-400">Loading indexes...</div>
+                        ) : (
+                            <div className="divide-y divide-[#dcd9d0]/50">
+                                {users.map(user => (
+                                    <button 
+                                        key={user.handle}
+                                        onClick={() => fetchBooksForUser(user.handle)}
+                                        className={`w-full text-left p-4 hover:bg-gray-50 transition-colors flex justify-between items-center ${selectedUser === user.handle ? 'bg-[#f0ede4] border-l-4 border-l-[#9b7e46]' : ''}`}
+                                    >
+                                        <div>
+                                            <div className="font-bold text-sm text-[#1a1a1a]">{user.handle}</div>
+                                            <div className="text-[10px] text-gray-400 font-mono mt-1">
+                                                Created: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                                            </div>
+                                        </div>
+                                        <span className="text-[#dcd9d0] text-xl">›</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* MAIN CONTENT: BOOKS */}
+                    <div className="flex-1 h-screen overflow-y-auto bg-[#fdfaf3] p-8">
+                        {selectedUser ? (
+                            <div className="max-w-3xl mx-auto">
+                                <header className="mb-8 pb-4 border-b border-[#dcd9d0] flex justify-between items-end">
+                                    <div>
+                                        <h1 className="crimson text-3xl font-bold">{selectedUser}'s Journal</h1>
+                                        <p className="text-xs uppercase tracking-widest text-[#9b7e46] mt-2">{userBooks.length} Entries Logged</p>
+                                    </div>
+                                    <button onClick={() => setSelectedUser(null)} className="md:hidden text-xs underline">Back to List</button>
+                                </header>
+
+                                {loadingBooks ? (
+                                    <div className="text-center py-12 text-gray-400 animate-pulse">Retrieving volumes...</div>
+                                ) : userBooks.length === 0 ? (
+                                    <div className="text-center py-12 border border-dashed border-[#dcd9d0] text-gray-400 italic crimson">
+                                        This journal is currently empty.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-8">
+                                        {userBooks.map(book => (
+                                            <div key={book.id} className="bg-white border border-[#dcd9d0] p-6 shadow-sm flex gap-6">
+                                                <div className="w-20 shrink-0">
+                                                    {book.imageUrl ? (
+                                                        <img src={book.imageUrl} className="w-full h-auto border border-gray-100 shadow-sm" />
+                                                    ) : (
+                                                        <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-xs text-gray-400">No Cover</div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <h3 className="crimson text-xl font-bold leading-tight">{book.title}</h3>
+                                                            <p className="text-xs uppercase tracking-widest text-gray-500">{book.author}</p>
+                                                        </div>
+                                                        <div className="flex flex-col items-end">
+                                                            <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${book.status === 'reading' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+                                                                {book.status}
+                                                            </span>
+                                                            <div className="text-[#9b7e46] text-xs mt-1">
+                                                                {"★".repeat(book.rating || 0)}{"☆".repeat(5 - (book.rating || 0))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {book.review && (
+                                                        <div className="mt-4 pt-4 border-t border-gray-100">
+                                                            <p className="crimson italic text-gray-600 text-sm whitespace-pre-wrap">{book.review}</p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div className="mt-3 flex gap-2 flex-wrap">
+                                                        {book.tag && <span className="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-600">#{book.tag}</span>}
+                                                        <span className="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-600">{book.classification}</span>
+                                                        <span className="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-600">{book.monthFinished} {book.year}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M12 6h-6a2 2 0 0 0-2 2v10"/></svg>
+                                <p className="mt-4 uppercase tracking-widest text-sm font-bold">Select a journal to inspect</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AdminApp />);
+    </script>
+</body>
+</html>
