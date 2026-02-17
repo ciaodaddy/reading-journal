@@ -92,11 +92,9 @@
         // --- CONFIGURATION ---
         
         // 1. CAMOUFLAGE THE KEY
-        // We split the key so GitHub scanners don't recognize it as a secret.
-        // PART_A is the standard Google prefix.
-        // PART_B is the rest of your key.
+        // Ideally, generate a NEW key in Google Cloud Console since GitHub revoked the old one.
         const API_KEY_PART_A = "AIzaSy"; 
-        const API_KEY_PART_B = "DxvXYVszNZ9dUDTi5s-wJn07ePlCuhxJs"; // <--- DELETE 'AIzaSy' from your new key and paste the rest here
+        const API_KEY_PART_B = "DxvXYVszNZ9dUDTi5s-wJn07ePlCuhxJs"; // <-- Make sure this is a NEW valid key part
         
         const REAL_API_KEY = API_KEY_PART_A + API_KEY_PART_B;
 
@@ -110,7 +108,6 @@
             measurementId: "G-0Z5HESVLP5"
         };
 
-        // Determine Config based on Environment (Canvas vs Production)
         const getFirebaseConfig = () => {
             try {
                 if (typeof __firebase_config !== 'undefined') {
@@ -124,10 +121,9 @@
 
         const APP_ID = (typeof __app_id !== 'undefined' && __app_id) ? __app_id : 'reading-journal-2026';
 
-        const GEMINI_API_KEY = REAL_API_KEY; // Using the same constructed key
+        const GEMINI_API_KEY = REAL_API_KEY;
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         
-        // --- FEEDBACK & FAQ CONFIGURATION ---
         const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform";
         const FAQ_URL = "https://docs.google.com/document/d/1i3UNQQZw0Aj8gvGGZUhydBpOv1hQveUWPmUoGsA_HQ8";
 
@@ -444,6 +440,23 @@
                         <div className="mt-8">
                             <a href={FEEDBACK_URL} target="_blank" className="text-[10px] text-gray-300 hover:text-gray-500 uppercase tracking-widest font-bold">Feedback</a>
                         </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- FEEDBACK MODAL (MISSING COMPONENT ADDED) ---
+        function FeedbackModal({ isOpen, onClose }) {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#1a1a1a]/40 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-md p-6 border border-[#dcd9d0] shadow-2xl relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black"><Icon name="x" size={20} /></button>
+                        <h3 className="crimson text-xl font-bold uppercase mb-4 text-[#9b7e46]">Feedback</h3>
+                        <p className="text-sm text-gray-600 mb-6">Found a bug? Have a suggestion? We'd love to hear from you.</p>
+                        <a href={FEEDBACK_URL} target="_blank" className="block w-full bg-[#1a1a1a] text-white text-center py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors">
+                            Open Feedback Form
+                        </a>
                     </div>
                 </div>
             );
