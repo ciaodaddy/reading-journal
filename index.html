@@ -315,6 +315,53 @@
             return canvas.toDataURL('image/jpeg', 0.85);
         };
 
+        // --- ERROR BOUNDARY ---
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+
+            componentDidCatch(error, errorInfo) {
+                console.error("Uncaught error:", error, errorInfo);
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="min-h-screen flex items-center justify-center p-4 bg-[#fdfaf3]">
+                            <div className="bg-white max-w-md w-full p-8 border border-[#dcd9d0] shadow-xl text-center">
+                                <div className="flex justify-center mb-4 text-gray-300">
+                                    <Icon name="book-open" size={48} />
+                                </div>
+                                <h1 className="crimson text-2xl font-bold mb-4">Library Temporarily Closed</h1>
+                                <p className="text-gray-600 mb-6 text-sm">
+                                    The journal is currently experiencing a technical interruption. 
+                                    Please try refreshing the page.
+                                </p>
+                                <div className="bg-red-50 border border-red-200 text-red-800 p-3 text-xs rounded mb-6 text-left overflow-auto max-h-32">
+                                    <code>{this.state.error?.message || "Unknown Error"}</code>
+                                </div>
+                                <div className="space-y-3">
+                                    <button onClick={() => window.location.reload()} className="w-full bg-[#1a1a1a] text-white py-3 font-bold uppercase text-xs tracking-widest hover:bg-[#9b7e46] transition-colors">
+                                        Refresh Page
+                                    </button>
+                                    <a href={FEEDBACK_URL} target="_blank" className="block w-full border border-[#dcd9d0] py-3 font-bold uppercase text-xs tracking-widest hover:bg-gray-50 transition-colors">
+                                        Report Issue
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
         // --- LANDING PAGE / LOBBY ---
         function LandingPage({ onEnter, db }) {
             const [handle, setHandle] = useState("");
@@ -1178,7 +1225,11 @@
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
     </script>
 </body>
 </html>
