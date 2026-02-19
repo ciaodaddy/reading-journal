@@ -143,12 +143,11 @@
         // Standardized lists
         const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        // --- UPDATED CLASSIFICATIONS LIST ---
         const BOOK_CLASSIFICATIONS = [
             "Literary Fiction", "Historical Fiction", "Sci-Fi / Fantasy", "Mystery / Thriller",
             "Memoir / Biography", "History / Politics", "Philosophy / Religion", "Science / Nature",
             "Essays / Poetry", "Current Affairs", 
-            "Short Story Collection", "Anthology (Multiple Authors)" // <-- Updated Label
+            "Short Story Collection", "Anthology" // <-- Added these two
         ];
         
         // --- QUESTIONS CONFIGURATION ---
@@ -171,6 +170,7 @@
             "Did the arrangement of the stories enhance the reading experience, or would you have ordered them differently?"
         ];
 
+        // The 7th question (Shared)
         const QUESTION_FINAL = "Include any additional thoughts or comments here (Optional).";
 
         // --- ICONS ---
@@ -655,7 +655,7 @@
                 if (!activeBook) return QUESTIONS_NOVEL; // Default
                 
                 // Determine if it's a collection
-                const isCollection = ["Short Story Collection", "Anthology (Multiple Authors)", "Essays / Poetry"].includes(activeBook.classification);
+                const isCollection = ["Short Story Collection", "Anthology", "Essays / Poetry"].includes(activeBook.classification);
                 
                 // Base questions
                 const baseList = isCollection ? QUESTIONS_COLLECTION : QUESTIONS_NOVEL;
@@ -796,7 +796,7 @@
                 const { addDoc } = window.FirebaseSDK;
                 
                 // --- UPDATED LOGIC FOR QUESTIONS ---
-                const isCollection = ["Short Story Collection", "Anthology (Multiple Authors)", "Essays / Poetry"].includes(activeBook.classification);
+                const isCollection = ["Short Story Collection", "Anthology", "Essays / Poetry"].includes(activeBook.classification);
                 
                 // Map the answers to the *correct* text of the question asked
                 // We recreate the array used in the modal here to ensure mapping matches
@@ -1021,7 +1021,7 @@
                                                 <input type="text" placeholder="Title" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.title} onChange={e => setNewBook({...newBook, title: e.target.value})} required />
                                                 <input 
                                                     type="text" 
-                                                    placeholder={(newBook.classification === "Anthology (Multiple Authors)" || newBook.classification === "Short Story Collection") ? "Editor or 'Various'" : "Author"} 
+                                                    placeholder={(newBook.classification === "Anthology" || newBook.classification === "Short Story Collection") ? "Author or 'Various' / 'Edited by...'" : "Author"} 
                                                     className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" 
                                                     value={newBook.author} 
                                                     onChange={e => setNewBook({...newBook, author: e.target.value})} 
@@ -1197,7 +1197,7 @@
             );
         }
 
-// --- ROOT WRAPPER ---
+        // --- ROOT WRAPPER ---
         function App() {
             const [urlParams, setUrlParams] = useState(null);
             const [db, setDb] = useState(null);
@@ -1285,7 +1285,7 @@
 
             return <JournalApp userHandle={urlParams.user} secretKey={urlParams.key} db={db} currentUser={currentUser} />;
         }
-        
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(
             <ErrorBoundary>
