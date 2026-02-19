@@ -143,11 +143,12 @@
         // Standardized lists
         const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
+        // --- UPDATED CLASSIFICATIONS LIST ---
         const BOOK_CLASSIFICATIONS = [
             "Literary Fiction", "Historical Fiction", "Sci-Fi / Fantasy", "Mystery / Thriller",
             "Memoir / Biography", "History / Politics", "Philosophy / Religion", "Science / Nature",
             "Essays / Poetry", "Current Affairs", 
-            "Short Story Collection", "Anthology" // <-- Added these two
+            "Short Story Collection", "Anthology (Multiple Authors)" // <-- Updated Label
         ];
         
         // --- QUESTIONS CONFIGURATION ---
@@ -170,7 +171,6 @@
             "Did the arrangement of the stories enhance the reading experience, or would you have ordered them differently?"
         ];
 
-        // The 7th question (Shared)
         const QUESTION_FINAL = "Include any additional thoughts or comments here (Optional).";
 
         // --- ICONS ---
@@ -655,7 +655,7 @@
                 if (!activeBook) return QUESTIONS_NOVEL; // Default
                 
                 // Determine if it's a collection
-                const isCollection = ["Short Story Collection", "Anthology", "Essays / Poetry"].includes(activeBook.classification);
+                const isCollection = ["Short Story Collection", "Anthology (Multiple Authors)", "Essays / Poetry"].includes(activeBook.classification);
                 
                 // Base questions
                 const baseList = isCollection ? QUESTIONS_COLLECTION : QUESTIONS_NOVEL;
@@ -796,7 +796,7 @@
                 const { addDoc } = window.FirebaseSDK;
                 
                 // --- UPDATED LOGIC FOR QUESTIONS ---
-                const isCollection = ["Short Story Collection", "Anthology", "Essays / Poetry"].includes(activeBook.classification);
+                const isCollection = ["Short Story Collection", "Anthology (Multiple Authors)", "Essays / Poetry"].includes(activeBook.classification);
                 
                 // Map the answers to the *correct* text of the question asked
                 // We recreate the array used in the modal here to ensure mapping matches
@@ -1021,7 +1021,7 @@
                                                 <input type="text" placeholder="Title" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.title} onChange={e => setNewBook({...newBook, title: e.target.value})} required />
                                                 <input 
                                                     type="text" 
-                                                    placeholder={(newBook.classification === "Anthology" || newBook.classification === "Short Story Collection") ? "Author or 'Various' / 'Edited by...'" : "Author"} 
+                                                    placeholder={(newBook.classification === "Anthology (Multiple Authors)" || newBook.classification === "Short Story Collection") ? "Editor or 'Various'" : "Author"} 
                                                     className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" 
                                                     value={newBook.author} 
                                                     onChange={e => setNewBook({...newBook, author: e.target.value})} 
@@ -1195,95 +1195,6 @@
                     <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
                 </div>
             );
-        }
-
-        // --- ROOT WRAPPER ---
-        function App() {
-            const [urlParams, setUrlParams] = useState(null);
-            const [db, setDb] = useState(null);
-            const [currentUser, setCurrentUser] = useState(null);
-            const [authError, setAuthError] = useState(null);
-
-            useEffect(() => {
-                const initApp = async () => {
-                    try {
-                        const { initializeApp, getFirestore, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } = window.FirebaseSDK;
-                        
-                        const config = getFirebaseConfig();
-                        const app = initializeApp(config);
-                        const dbInstance = getFirestore(app);
-                        const authInstance = getAuth(app);
-                        setDb(dbInstance);
-
-                        try {
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(authInstance, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(authInstance);
-                            }
-                        } catch (e) {
-                            console.error("Auth Failed", e);
-                            setAuthError(e.message);
-                            return; 
-                        }
-
-                        onAuthStateChanged(authInstance, (u) => {
-                            setCurrentUser(u);
-                        });
-                    } catch (err) {
-                        setAuthError("Failed to initialize app.");
-                    }
-                };
-                initApp();
-            }, []);
-
-            useEffect(() => {
-                const params = new URLSearchParams(window.location.search);
-                const user = params.get("user");
-                const key = params.get("key");
-                if (user) {
-                    setUrlParams({ user, key });
-                } else {
-                    setUrlParams(null);
-                }
-            }, []);
-
-            const handleEnter = (handle, key) => {
-                const url = new URL(window.location);
-                url.searchParams.set("user", handle);
-                if(key) url.searchParams.set("key", key);
-                window.history.pushState({}, "", url);
-                setUrlParams({ user: handle, key });
-            };
-
-            if (authError) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center p-4">
-                        <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded shadow-lg max-w-md text-center">
-                            <h2 className="font-bold mb-2">Connection Error</h2>
-                            <p className="text-sm">{authError}</p>
-                            <p className="text-xs mt-4 text-gray-500">Please refresh the page or try again later.</p>
-                        </div>
-                    </div>
-                );
-            }
-
-            if (!db || !currentUser) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center p-4">
-                        <div className="flex flex-col items-center gap-4 text-gray-400 animate-pulse">
-                            <Icon name="rotate-cw" className="animate-spin" size={24} />
-                            <p className="text-xs uppercase tracking-widest font-bold">Connecting to Library...</p>
-                        </div>
-                    </div>
-                );
-            }
-
-            if (!urlParams) {
-                return <LandingPage onEnter={handleEnter} db={db} />;
-            }
-
-            return <JournalApp userHandle={urlParams.user} secretKey={urlParams.key} db={db} currentUser={currentUser} />;
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
