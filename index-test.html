@@ -1021,7 +1021,7 @@
                                                 <input type="text" placeholder="Title" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.title} onChange={e => setNewBook({...newBook, title: e.target.value})} required />
                                                 <input 
                                                     type="text" 
-                                                    placeholder={(newBook.classification === "Anthology (Multiple Authors)" || newBook.classification === "Essays / Poetry") ? "Edited by or 'Various'"} 
+                                                    placeholder={(newBook.classification === "Anthology (Multiple Authors)" || newBook.classification === "Essays / Poetry") ? "Edited by or 'Various'" : "Author"} 
                                                     className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" 
                                                     value={newBook.author} 
                                                     onChange={e => setNewBook({...newBook, author: e.target.value})} 
