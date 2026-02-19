@@ -122,7 +122,7 @@
         const APP_ID = (typeof __app_id !== 'undefined' && __app_id) ? __app_id : 'reading-journal-2026';
 
         const GEMINI_API_KEY = REAL_API_KEY;
-        const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
+        const GEMINI_MODEL = "gemini-2.5-flash";
         
         const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform";
         const FAQ_URL = "https://docs.google.com/document/d/1i3UNQQZw0Aj8gvGGZUhydBpOv1hQveUWPmUoGsA_HQ8";
@@ -142,13 +142,17 @@
 
         // Standardized lists
         const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        
         const BOOK_CLASSIFICATIONS = [
             "Literary Fiction", "Historical Fiction", "Sci-Fi / Fantasy", "Mystery / Thriller",
             "Memoir / Biography", "History / Politics", "Philosophy / Religion", "Science / Nature",
-            "Essays / Poetry", "Current Affairs"
+            "Essays / Poetry", "Current Affairs", 
+            "Short Story Collection", "Anthology (Multiple Authors)" // <-- Added these two
         ];
         
-        const STANDARDIZED_QUESTIONS = [
+        // --- QUESTIONS CONFIGURATION ---
+        
+        const QUESTIONS_NOVEL = [
             "Describe your feelings and perspectives when you finished this book, compared to how you felt before beginning to read it.",
             "At what point in the book did your initial perspective or expectation change?",
             "What specific stylistic choice or “fingerprint” by the author felt the most distinct or jarring?",
@@ -156,6 +160,18 @@
             "Assign a sensory characteristic to this book (e.g. its texture, sound, taste, or smell), and explain why that is.",
             "What specific curiosity in regard to the author, topic, or genre, does this book leave you with?"
         ];
+
+        const QUESTIONS_COLLECTION = [
+            "Did the collection feel cohesive, or did the stories feel like they belonged to different worlds? Why?",
+            "Which single story or essay stands out as the anchor of the collection, and what made it stick?",
+            "Was there a specific theme, setting, or character archetype that seemed to obsess the author(s) throughout?",
+            "If you could remove one story to make the collection stronger, which would it be and why?",
+            "Assign a sensory characteristic to the collection as a whole (e.g. its texture, sound, or atmosphere).",
+            "Did the arrangement of the stories enhance the reading experience, or would you have ordered them differently?"
+        ];
+
+        // The 7th question (Shared)
+        const QUESTION_FINAL = "Include any additional thoughts or comments here (Optional).";
 
         // --- ICONS ---
         const Icon = ({ name, size = 18, className = "", fill = "none" }) => {
@@ -492,7 +508,7 @@
             );
         }
 
-        // --- FEEDBACK MODAL (MISSING COMPONENT ADDED) ---
+        // --- FEEDBACK MODAL ---
         function FeedbackModal({ isOpen, onClose }) {
             if (!isOpen) return null;
             return (
@@ -634,6 +650,20 @@
                 return { total, avgRating };
             }, [finishedBooks]);
 
+            // --- DYNAMIC QUESTION SELECTION ---
+            const currentQuestions = useMemo(() => {
+                if (!activeBook) return QUESTIONS_NOVEL; // Default
+                
+                // Determine if it's a collection
+                const isCollection = ["Short Story Collection", "Anthology (Multiple Authors)", "Essays / Poetry"].includes(activeBook.classification);
+                
+                // Base questions
+                const baseList = isCollection ? QUESTIONS_COLLECTION : QUESTIONS_NOVEL;
+
+                // Add the shared 7th question
+                return [...baseList, QUESTION_FINAL];
+            }, [activeBook]);
+
             // --- ACTIONS ---
             const getCollectionRef = () => {
                 const { collection } = window.FirebaseSDK;
@@ -727,9 +757,15 @@
                 const { doc, updateDoc } = window.FirebaseSDK;
                 setGeneratingImageId(bookData.id);
                 try {
-                    const q = encodeURIComponent(`intitle:${bookData.title} inauthor:${bookData.author}`);
+                    // Logic to handle "Various" or "Edited by" which confuse Google Books
+                    const isAnthology = /various|editor|edited|collection/i.test(bookData.author);
+                    const q = isAnthology 
+                        ? encodeURIComponent(`intitle:${bookData.title}`)
+                        : encodeURIComponent(`intitle:${bookData.title} inauthor:${bookData.author}`);
+
                     const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1`);
                     const data = await response.json();
+                    
                     if (data.items && data.items[0]?.volumeInfo?.imageLinks) {
                         const links = data.items[0].volumeInfo.imageLinks;
                         let imgUrl = links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail;
@@ -758,9 +794,32 @@
             const finalizeReview = async () => {
                 setIsGenerating(true);
                 const { addDoc } = window.FirebaseSDK;
-                const dataStr = STANDARDIZED_QUESTIONS.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
+                
+                // --- UPDATED LOGIC FOR QUESTIONS ---
+                const isCollection = ["Short Story Collection", "Anthology (Multiple Authors)", "Essays / Poetry"].includes(activeBook.classification);
+                
+                // Map the answers to the *correct* text of the question asked
+                // We recreate the array used in the modal here to ensure mapping matches
+                const questionsUsed = isCollection 
+                    ? [...QUESTIONS_COLLECTION, QUESTION_FINAL]
+                    : [...QUESTIONS_NOVEL, QUESTION_FINAL];
+
+                const dataStr = questionsUsed.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
+                
+                // --- PROMPT ENGINEERING ---
+                let systemInstruction = `Synthesize a narrative reading journal entry for "${activeBook.title}" by ${activeBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI.`;
+                
+                if (isCollection) {
+                    systemInstruction += `\n\nCONTEXT: This is a short story collection or anthology. Instead of focusing on a single plot arc, discuss the thematic threads that connect the stories, the variety of voices (if an anthology), or specific standout stories mentioned in the notes.`;
+                } else {
+                    systemInstruction += `\n\nCRITICAL INSTRUCTION: Do not reuse phrases from the questions. Weave the insights into a natural, cohesive narrative flow.`;
+                }
+
+                // Note regarding the final optional question
+                systemInstruction += `\n\nNOTE: The final question in the notes is an optional "catch-all". If the user provided content there, integrate it smoothly. If it is "N/A", ignore it.`;
+
                 try {
-                    const review = await callGemini(`Synthesize a narrative reading journal entry for "${activeBook.title}" by ${activeBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI. CRITICAL INSTRUCTION: Do not reuse phrases from the questions (e.g., "My perspective changed when..."). Instead, weave the insights into a natural, cohesive narrative flow. Focus on the specific reflections in these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
+                    const review = await callGemini(`${systemInstruction}\n\nFocus on the specific reflections in these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
                     const tagRaw = await callGemini(`Provide a punchy 2-4 word atmospheric tag for: ${review}`);
                     const tag = tagRaw.replace(/[".]/g, '').trim();
                     const nextOrder = books.length > 0 ? Math.max(...books.map(b => b.order ?? 0)) + 1 : 0;
@@ -768,7 +827,7 @@
                     await addDoc(getCollectionRef(), { ...activeBook, review, tag, year: "2026", updatedAt: Date.now(), order: nextOrder });
                     setIsInterviewOpen(false);
                     setNewBook({ title: '', author: '', monthFinished: MONTHS[new Date().getMonth()], rating: 0, classification: BOOK_CLASSIFICATIONS[0], status: 'finished' });
-                    setActiveBook(null); // Clear only on success
+                    setActiveBook(null); 
                 } catch (e) { 
                     setErrorMessage(`Synthesis failed: ${e.message}`); 
                 } finally { 
@@ -800,7 +859,7 @@
                              <a href="?" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Go to Lobby">Lobby</a>
                              <a href={FEEDBACK_URL} target="_blank" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Send Feedback"><Icon name="send" size={14} /></a>
                              <button onClick={copyShareLink} className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors">Share View</button>
-                         </div>
+                          </div>
                     </div>
 
                     <div className="max-w-2xl mx-auto mt-8">
@@ -835,7 +894,7 @@
                                                 <div className="w-full">
                                                     <h3 className="crimson text-xl font-bold uppercase mb-6 flex justify-between items-center">Edit Entry <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-black"><Icon name="x" /></button></h3>
                                                     <form onSubmit={handleUpdateEntry} className="space-y-6">
-                                                            <div className="flex justify-end"><select value={editingBook.status || 'finished'} onChange={e => setEditingBook({...editingBook, status: e.target.value})} className="text-[10px] font-bold uppercase tracking-widest bg-gray-100 p-2 rounded"><option value="finished">Finished</option><option value="reading">Currently Reading</option></select></div>
+                                                             <div className="flex justify-end"><select value={editingBook.status || 'finished'} onChange={e => setEditingBook({...editingBook, status: e.target.value})} className="text-[10px] font-bold uppercase tracking-widest bg-gray-100 p-2 rounded"><option value="finished">Finished</option><option value="reading">Currently Reading</option></select></div>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                             <div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Title</label><input className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={editingBook.title} onChange={e => setEditingBook({...editingBook, title: e.target.value})} /></div>
                                                             <div><label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Author</label><input className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={editingBook.author} onChange={e => setEditingBook({...editingBook, author: e.target.value})} /></div>
@@ -960,7 +1019,14 @@
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <input type="text" placeholder="Title" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.title} onChange={e => setNewBook({...newBook, title: e.target.value})} required />
-                                                <input type="text" placeholder="Author" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.author} onChange={e => setNewBook({...newBook, author: e.target.value})} required />
+                                                <input 
+                                                    type="text" 
+                                                    placeholder={(newBook.classification === "Anthology (Multiple Authors)" || newBook.classification === "Essays / Poetry") ? "Edited by or 'Various'" : "Author"} 
+                                                    className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" 
+                                                    value={newBook.author} 
+                                                    onChange={e => setNewBook({...newBook, author: e.target.value})} 
+                                                    required 
+                                                />
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div><label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-2">Classification</label><select className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm outline-none cursor-pointer" value={newBook.classification} onChange={e => setNewBook({...newBook, classification: e.target.value})}>{BOOK_CLASSIFICATIONS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
@@ -995,7 +1061,7 @@
                                 <div key={book.id} id={`book-${book.id}`} className="scroll-mt-20">
                                     {editingId === book.id && !isReadOnly ? (
                                         <div className="p-8 border-2 border-[#9b7e46] bg-white shadow-xl animate-fade-in">
-                                            {/* EDIT FORM (Simplified for brevity - assumes same structure as your original, just wrapped in !isReadOnly logic already checked) */}
+                                            {/* EDIT FORM */}
                                             <h3 className="crimson text-xl font-bold uppercase mb-6 flex justify-between items-center">Edit Entry <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-black"><Icon name="x" /></button></h3>
                                             <form onSubmit={handleUpdateEntry} className="space-y-6">
                                                  <div className="flex justify-end"><select value={editingBook.status || 'finished'} onChange={e => setEditingBook({...editingBook, status: e.target.value})} className="text-[10px] font-bold uppercase tracking-widest bg-gray-100 p-2 rounded"><option value="finished">Finished</option><option value="reading">Currently Reading</option></select></div>
@@ -1101,7 +1167,7 @@
                             <div className="bg-[#fdfaf3] w-full max-w-xl border border-[#dcd9d0] shadow-2xl relative animate-fade-in">
                                 <button onClick={() => setIsInterviewOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><Icon name="x" size={20} /></button>
                                 <div className="p-8 text-ink-black">
-                                    <div className="flex items-center gap-3 mb-8"><div className="bg-[#9b7e46] text-white p-2 rounded-full"><Icon name="sparkles" size={20} /></div><div><h3 className="crimson text-xl font-bold uppercase tracking-wider">Reflecting: {activeBook?.title}</h3><p className="text-[10px] font-bold uppercase text-gray-400">Anchor {currentQuestionIdx + 1} of {STANDARDIZED_QUESTIONS.length}</p></div></div>
+                                    <div className="flex items-center gap-3 mb-8"><div className="bg-[#9b7e46] text-white p-2 rounded-full"><Icon name="sparkles" size={20} /></div><div><h3 className="crimson text-xl font-bold uppercase tracking-wider">Reflecting: {activeBook?.title}</h3><p className="text-[10px] font-bold uppercase text-gray-400">Anchor {currentQuestionIdx + 1} of {currentQuestions.length}</p></div></div>
                                     
                                     {/* ERROR MESSAGE INSIDE MODAL */}
                                     {errorMessage && (
@@ -1114,11 +1180,11 @@
 
                                     {isGenerating ? (<div className="space-y-4 py-8"><div className="h-4 shimmer w-full"></div><div className="h-4 shimmer w-5/6"></div><div className="h-4 shimmer w-4/6"></div><p className="crimson italic text-center text-gray-400 mt-4">Writing reflections...</p></div>) : (
                                         <div className="space-y-6">
-                                            <p className="crimson text-xl italic text-gray-700 leading-relaxed">"{STANDARDIZED_QUESTIONS[currentQuestionIdx]}"</p>
+                                            <p className="crimson text-xl italic text-gray-700 leading-relaxed">"{currentQuestions[currentQuestionIdx]}"</p>
                                             <textarea autoFocus className="w-full bg-white border border-[#dcd9d0] p-4 focus:border-[#9b7e46] outline-none resize-none crimson text-lg custom-scrollbar" rows={4} placeholder="Your thoughts..." value={answers[currentQuestionIdx] || ''} onChange={(e) => setAnswers({...answers, [currentQuestionIdx]: e.target.value})} />
                                             <div className="flex justify-between items-center">
                                                 <button disabled={currentQuestionIdx === 0} onClick={() => setCurrentQuestionIdx(prev => prev - 1)} className="text-xs font-bold uppercase text-gray-400 disabled:opacity-0 hover:text-black transition-colors">Back</button>
-                                                {currentQuestionIdx < STANDARDIZED_QUESTIONS.length - 1 ? (<button onClick={() => setCurrentQuestionIdx(prev => prev + 1)} className="bg-[#1a1a1a] text-white px-6 py-2 text-xs font-bold uppercase hover:bg-[#9b7e46] flex items-center gap-2 transition-colors">Next <Icon name="send" size={14}/></button>) : (<button onClick={finalizeReview} className="bg-[#9b7e46] text-white px-8 py-3 text-xs font-bold uppercase hover:bg-[#1a1a1a] flex items-center gap-2 transition-colors">Finalize <Icon name="sparkles" size={14}/></button>)}
+                                                {currentQuestionIdx < currentQuestions.length - 1 ? (<button onClick={() => setCurrentQuestionIdx(prev => prev + 1)} className="bg-[#1a1a1a] text-white px-6 py-2 text-xs font-bold uppercase hover:bg-[#9b7e46] flex items-center gap-2 transition-colors">Next <Icon name="send" size={14}/></button>) : (<button onClick={finalizeReview} className="bg-[#9b7e46] text-white px-8 py-3 text-xs font-bold uppercase hover:bg-[#1a1a1a] flex items-center gap-2 transition-colors">Finalize <Icon name="sparkles" size={14}/></button>)}
                                             </div>
                                         </div>
                                     )}
@@ -1143,16 +1209,13 @@
                     try {
                         const { initializeApp, getFirestore, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } = window.FirebaseSDK;
                         
-                        // Use environment config if available (for Canvas), otherwise use hardcoded (for GitHub Pages)
                         const config = getFirebaseConfig();
                         const app = initializeApp(config);
                         const dbInstance = getFirestore(app);
                         const authInstance = getAuth(app);
                         setDb(dbInstance);
 
-                        // Ensure we have a user BEFORE doing anything else
                         try {
-                            // Check if environment provided a custom token (Canvas uses this to bypass anonymous auth limits)
                             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                                 await signInWithCustomToken(authInstance, __initial_auth_token);
                             } else {
@@ -1205,7 +1268,6 @@
                 );
             }
 
-            // Show a global loading state until Firebase is ready
             if (!db || !currentUser) {
                 return (
                     <div className="min-h-screen flex items-center justify-center p-4">
