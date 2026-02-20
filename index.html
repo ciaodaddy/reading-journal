@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
     <title>2026 Reading Journal</title>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -912,7 +911,7 @@
                                                 <>
                                                     <div className="shrink-0 w-24 group relative mini-frame">
                                                         <div className="journal-frame flex items-center justify-center bg-[#fdfaf3]">
-                                                            <img src={book.imageUrl || defaultGeometricArt} alt="Cover" className="sketch-content" />
+                                                            <img src={book.imageUrl || defaultGeometricArt} alt="Cover" className="sketch-content" referrerPolicy="no-referrer" />
                                                             {!isReadOnly && (
                                                                 <div className="absolute inset-0 bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
                                                                     <button onClick={() => { setActiveBook({ id: book.id }); fileInputRef.current.click(); }} className="text-black hover:text-[#9b7e46] transition-colors" title="Upload Image"><Icon name="upload" size={14} /></button>
@@ -1121,7 +1120,7 @@
                                                         <div className="journal-frame group relative flex items-center justify-center bg-[#fdfaf3]">
                                                              {book.imageUrl ? (
                                                                 <>
-                                                                    <img src={book.imageUrl} alt="Visual" className="sketch-content" />
+                                                                    <img src={book.imageUrl} alt="Visual" className="sketch-content" referrerPolicy="no-referrer" />
                                                                     {!isReadOnly && (
                                                                         <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                                                                             <button onClick={() => { setActiveBook({ id: book.id }); fileInputRef.current.click(); }} className="text-gray-500 hover:text-black text-xs font-bold uppercase tracking-widest flex items-center gap-2"><Icon name="upload" size={14} /> Upload Image</button>
