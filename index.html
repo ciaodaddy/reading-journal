@@ -764,7 +764,7 @@
                         ? encodeURIComponent(`intitle:${bookData.title}`)
                         : encodeURIComponent(`intitle:${bookData.title} inauthor:${bookData.author}`);
 
-                    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1`);
+                    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&key=${REAL_API_KEY}`);
                     const data = await response.json();
                     
                     if (data.items && data.items[0]?.volumeInfo?.imageLinks) {
