@@ -118,7 +118,7 @@
         const APP_ID = (typeof __app_id !== 'undefined' && __app_id) ? __app_id : 'reading-journal-2026';
 
         const GEMINI_API_KEY = REAL_API_KEY;
-        const GEMINI_MODEL = "gemini-2.5-flash";
+        const GEMINI_MODEL = "gemini-2.0-flash";
         
         const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform";
         const FAQ_URL = "https://docs.google.com/document/d/1i3UNQQZw0Aj8gvGGZUhydBpOv1hQveUWPmUoGsA_HQ8";
@@ -139,14 +139,15 @@
         // Standardized lists
         const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
+        // ADJUSTED CLASSIFICATIONS (Removed parentheticals for cleaner UI)
         const BOOK_CLASSIFICATIONS = [
-            "Literary Fiction", "Historical Fiction", "Sci-Fi / Fantasy", "Mystery / Thriller", "Horror", 
-            "Memoir / Biography", "History / Politics", "Philosophy / Religion", "Science / Nature",
-            "Essays / Poetry", "Current Affairs", 
-            "Short Story Collection", "Anthology (Multiple Authors)"
+            "Literary Fiction", "Historical Fiction", "Sci-Fi / Fantasy", "Mystery / Thriller", "Horror", "Romance", "Contemporary", "Young Adult", "Graphic Novels",
+            "Memoir / Biography", "History / Politics", "Science / Nature", "Philosophy / Religion", "Self-Help / Psychology", "True Crime", "Business / Economics", "Cookbooks",
+            "Short Story Collection", "Anthology", "Essays / Poetry", "Art / Design", "Reference"
         ];
         
-        const COLLECTION_CLASSIFICATIONS = ["Short Story Collection", "Anthology (Multiple Authors)", "Essays / Poetry"];
+        // Classes that trigger the "Collection" interview style
+        const COLLECTION_CLASSIFICATIONS = ["Short Story Collection", "Anthology", "Essays / Poetry"];
 
         // --- QUESTIONS CONFIGURATION ---
         const QUESTIONS_NOVEL = [
@@ -540,7 +541,6 @@
             const [editingBook, setEditingBook] = useState(null);
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
             
-            // Separated: uploadTargetId is for image uploads, reflectionBook is for the interview flow
             const [uploadTargetId, setUploadTargetId] = useState(null);
             const [reflectionBook, setReflectionBook] = useState(null);
             
@@ -561,7 +561,6 @@
                         setDeleteConfirmId(null);
                     }
                 };
-                // Delay to avoid catching the click that opened it
                 const timer = setTimeout(() => document.addEventListener('click', handler), 0);
                 return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
             }, [deleteConfirmId]);
@@ -749,9 +748,6 @@
                 } catch (err) {}
             };
 
-            // --- FIXED: Fetch Cover ---
-            // Uses Google Books URL directly instead of trying to compress via canvas
-            // (cross-origin canvas tainting was silently breaking this)
             const handleFetchCover = async (bookData) => {
                 if (isReadOnly) return;
                 const { updateDoc } = window.FirebaseSDK;
@@ -775,15 +771,10 @@
                     
                     if (data.items && data.items[0]?.volumeInfo?.imageLinks) {
                         const links = data.items[0].volumeInfo.imageLinks;
-                        // Prefer larger images, fall back to smaller
                         let imgUrl = links.extraLarge || links.large || links.medium || links.thumbnail || links.smallThumbnail;
-                        // Ensure HTTPS and remove curl effect
                         imgUrl = imgUrl.replace(/^http:/, 'https:').replace('&edge=curl', '');
-                        
-                        // Use the URL directly — canvas compression fails due to CORS
                         await updateDoc(getBookDocRef(bookData.id), { imageUrl: imgUrl, updatedAt: Date.now() });
                     } else {
-                        console.warn("No cover found for:", bookData.title);
                         setErrorMessage(`No cover image found for "${bookData.title}". Try uploading one manually.`);
                         await updateDoc(getBookDocRef(bookData.id), { imageUrl: defaultGeometricArt, updatedAt: Date.now() });
                     }
@@ -853,7 +844,6 @@
                 alert("Read-Only link copied to clipboard!");
             };
 
-            // Shared cover action handlers for a given book
             const coverActions = (book) => ({
                 onUpload: () => { setUploadTargetId(book.id); fileInputRef.current.click(); },
                 onFetch: () => handleFetchCover(book),
@@ -868,7 +858,6 @@
 
             return (
                 <div className="min-h-screen py-10 px-4 pb-32 text-ink-black relative">
-                    {/* TOP BAR */}
                     <div className="fixed top-0 left-0 right-0 p-2 flex justify-end items-start z-40 pointer-events-none">
                          <div className="pointer-events-auto flex gap-2">
                              <a href="?" className="bg-white/80 backdrop-blur p-2 border border-[#dcd9d0] rounded text-xs font-bold hover:bg-[#1a1a1a] hover:text-white transition-colors" title="Go to Lobby">Lobby</a>
@@ -893,7 +882,6 @@
                             )}
                         </header>
 
-                        {/* CURRENTLY READING */}
                         {currentReads.length > 0 && (
                             <section className="mb-12 animate-fade-in">
                                 <h3 className="text-center text-xs font-bold uppercase tracking-widest text-gray-400 mb-6 flex items-center justify-center gap-4">
@@ -944,7 +932,6 @@
                             </section>
                         )}
 
-                        {/* SEARCH */}
                         {finishedBooks.length > 0 && (
                             <div className="mb-8 flex justify-center">
                                 {!isSearchOpen ? (
@@ -961,7 +948,6 @@
                             </div>
                         )}
 
-                        {/* INDEX */}
                         {filteredFinishedBooks.length > 0 && !searchTerm && (
                             <section className="mb-12 bg-[#f8f5ed] p-8 rounded-sm border border-[#eeebe2]">
                                 <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-6 border-b border-[#dcd9d0] pb-2">Journal Index</h3>
@@ -996,7 +982,6 @@
                             </div>
                         )}
 
-                        {/* ADD ENTRY */}
                         {!isReadOnly && (
                             <div className="mb-12 flex justify-center">
                                 {!isAddOpen ? (
@@ -1018,7 +1003,7 @@
                                                 <input type="text" placeholder="Title" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.title} onChange={e => setNewBook({...newBook, title: e.target.value})} required />
                                                 <input 
                                                     type="text" 
-                                                    placeholder={(newBook.classification === "Anthology (Multiple Authors)" || newBook.classification === "Essays / Poetry") ? "'Edited by...' or 'Various'" : "Author"} 
+                                                    placeholder={(newBook.classification === "Anthology" || newBook.classification === "Essays / Poetry") ? "Edited by... or Various" : "Author"} 
                                                     className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" 
                                                     value={newBook.author} onChange={e => setNewBook({...newBook, author: e.target.value})} required 
                                                 />
@@ -1056,7 +1041,6 @@
                             </div>
                         )}
 
-                        {/* BOOK LIST */}
                         <div className="space-y-12">
                             {loading ? (
                                 <div className="flex flex-col items-center py-20 text-gray-400"><Icon name="rotate-cw" className="animate-spin mb-4" /><p className="crimson italic">Consulting the project archive...</p></div>
@@ -1159,7 +1143,6 @@
                     
                     {!isReadOnly && <input type="file" ref={fileInputRef} onChange={onFileChange} accept="image/*" className="hidden" />}
 
-                    {/* REFLECTION INTERVIEW MODAL */}
                     {isInterviewOpen && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1a1a1a]/40 backdrop-blur-sm">
                             <div className="bg-[#fdfaf3] w-full max-w-xl border border-[#dcd9d0] shadow-2xl relative animate-fade-in">
