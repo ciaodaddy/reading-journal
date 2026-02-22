@@ -118,7 +118,7 @@
         const APP_ID = (typeof __app_id !== 'undefined' && __app_id) ? __app_id : 'reading-journal-2026';
 
         const GEMINI_API_KEY = REAL_API_KEY;
-        const GEMINI_MODEL = "gemini-2.0-flash";
+        const GEMINI_MODEL = "gemini-2.5-flash";
         
         const FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfPGl_gwwXk4jETTp2Wn5BCAhMV-AdA3YqIePt4_ADLcG1gPQ/viewform";
         const FAQ_URL = "https://docs.google.com/document/d/1i3UNQQZw0Aj8gvGGZUhydBpOv1hQveUWPmUoGsA_HQ8";
@@ -328,7 +328,7 @@
                         <option value="reading">Currently Reading</option>
                     </select>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Title</label>
                         <input className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={book.title} onChange={e => onChange({...book, title: e.target.value})} />
@@ -336,6 +336,10 @@
                     <div>
                         <label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Author</label>
                         <input className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={book.author} onChange={e => onChange({...book, author: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold uppercase text-gray-400 block mb-1">Pages</label>
+                        <input type="number" className="w-full p-3 text-sm border border-[#dcd9d0] bg-white outline-none focus:border-[#9b7e46]" value={book.pages || ''} onChange={e => onChange({...book, pages: e.target.value})} />
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -532,7 +536,7 @@
             
             const [isAddOpen, setIsAddOpen] = useState(false);
             const [newBook, setNewBook] = useState({ 
-                title: '', author: '', monthFinished: MONTHS[new Date().getMonth()], 
+                title: '', author: '', pages: '', monthFinished: MONTHS[new Date().getMonth()], 
                 rating: 0, classification: BOOK_CLASSIFICATIONS[0], status: 'finished'
             });
             const [isInterviewOpen, setIsInterviewOpen] = useState(false);
@@ -639,7 +643,12 @@
             const stats = useMemo(() => {
                 const total = finishedBooks.length;
                 if (total === 0) return null;
-                return { total, avgRating: (finishedBooks.reduce((acc, b) => acc + (b.rating || 0), 0) / total).toFixed(1) };
+                const totalPages = finishedBooks.reduce((acc, b) => acc + (parseInt(b.pages) || 0), 0);
+                return { 
+                    total, 
+                    avgRating: (finishedBooks.reduce((acc, b) => acc + (b.rating || 0), 0) / total).toFixed(1),
+                    totalPages
+                };
             }, [finishedBooks]);
 
             const currentQuestions = useMemo(() => {
@@ -664,7 +673,7 @@
             }, [books]);
 
             const resetNewBook = useCallback(() => {
-                setNewBook({ title: '', author: '', monthFinished: MONTHS[new Date().getMonth()], rating: 0, classification: BOOK_CLASSIFICATIONS[0], status: 'finished' });
+                setNewBook({ title: '', author: '', pages: '', monthFinished: MONTHS[new Date().getMonth()], rating: 0, classification: BOOK_CLASSIFICATIONS[0], status: 'finished' });
             }, []);
 
             // --- ACTIONS ---
@@ -796,37 +805,46 @@
             };
 
             const finalizeReview = async () => {
-                setIsGenerating(true);
-                const { addDoc } = window.FirebaseSDK;
-                
-                const isCollection = COLLECTION_CLASSIFICATIONS.includes(reflectionBook.classification);
-                const questionsUsed = [...(isCollection ? QUESTIONS_COLLECTION : QUESTIONS_NOVEL), QUESTION_FINAL];
-                const dataStr = questionsUsed.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
-                
-                let systemInstruction = `Synthesize a narrative reading journal entry for "${reflectionBook.title}" by ${reflectionBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI.`;
-                
-                if (isCollection) {
-                    systemInstruction += `\n\nCONTEXT: This is a short story collection or anthology. Instead of focusing on a single plot arc, discuss the thematic threads that connect the stories, the variety of voices (if an anthology), or specific standout stories mentioned in the notes.`;
-                } else {
-                    systemInstruction += `\n\nCRITICAL INSTRUCTION: Do not reuse phrases from the questions. Weave the insights into a natural, cohesive narrative flow.`;
-                }
-                systemInstruction += `\n\nNOTE: The final question in the notes is an optional "catch-all". If the user provided content there, integrate it smoothly. If it is "N/A", ignore it.`;
+    setIsGenerating(true);
+    const { addDoc } = window.FirebaseSDK;
+    
+    const isCollection = COLLECTION_CLASSIFICATIONS.includes(reflectionBook.classification);
+    const questionsUsed = [...(isCollection ? QUESTIONS_COLLECTION : QUESTIONS_NOVEL), QUESTION_FINAL];
+    const dataStr = questionsUsed.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
+    
+    let systemInstruction = `Synthesize a narrative reading journal entry for "${reflectionBook.title}" by ${reflectionBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI.`;
+    
+    if (isCollection) {
+        systemInstruction += `\n\nCONTEXT: This is a short story collection or anthology. Instead of focusing on a single plot arc, discuss the thematic threads that connect the stories, the variety of voices (if an anthology), or specific standout stories mentioned in the notes.`;
+    } else {
+        systemInstruction += `\n\nCRITICAL INSTRUCTION: Do not reuse phrases from the questions. Weave the insights into a natural, cohesive narrative flow.`;
+    }
+    systemInstruction += `\n\nNOTE: The final question in the notes is an optional "catch-all". If the user provided content there, integrate it smoothly. If it is "N/A", ignore it.`;
 
-                try {
-                    const review = await callGemini(`${systemInstruction}\n\nFocus on the specific reflections in these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
-                    const tagRaw = await callGemini(`Provide a punchy 2-4 word atmospheric tag for: ${review}`);
-                    const tag = tagRaw.replace(/[".]/g, '').trim();
-                    
-                    await addDoc(getCollectionRef(), { ...reflectionBook, review, tag, year: "2026", updatedAt: Date.now(), order: nextOrder() });
-                    setIsInterviewOpen(false);
-                    resetNewBook();
-                    setReflectionBook(null); 
-                } catch (e) { 
-                    setErrorMessage(`Synthesis failed: ${e.message}`); 
-                } finally { 
-                    setIsGenerating(false); 
-                }
-            };
+    // INSTRUCT THE MODEL TO RETURN STRICT JSON
+    systemInstruction += `\n\nOUTPUT FORMAT: You must return ONLY a valid JSON object with exactly two keys: "review" (the 200-250 word narrative reflection) and "tag" (a punchy 2-4 word atmospheric tag without punctuation). Do not include markdown formatting or any other text outside the JSON object.`;
+
+    try {
+        // MAKE A SINGLE API CALL
+        const rawResponse = await callGemini(`${systemInstruction}\n\nFocus on the specific reflections in these notes:\n\n${dataStr}`);
+        
+        // PARSE THE JSON (removing markdown code blocks if the AI accidentally includes them)
+        const cleanedResponse = rawResponse.replace(/```json/i, '').replace(/```/g, '').trim();
+        const generatedData = JSON.parse(cleanedResponse);
+        
+        const review = generatedData.review;
+        const tag = generatedData.tag;
+        
+        await addDoc(getCollectionRef(), { ...reflectionBook, review, tag, year: "2026", updatedAt: Date.now(), order: nextOrder() });
+        setIsInterviewOpen(false);
+        resetNewBook();
+        setReflectionBook(null); 
+    } catch (e) { 
+        setErrorMessage(`Synthesis failed: ${e.message}`); 
+    } finally { 
+        setIsGenerating(false); 
+    }
+};
 
             const handleExportData = () => {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(books, null, 2));
@@ -877,6 +895,7 @@
                             {stats && (
                                 <div className="flex justify-center gap-12 mt-6 text-xs font-bold uppercase tracking-widest text-[#9b7e46]">
                                     <div className="flex flex-col items-center"><span className="text-2xl text-black font-normal crimson">{stats.total}</span><span>Finished</span></div>
+                                    <div className="flex flex-col items-center"><span className="text-2xl text-black font-normal crimson">{stats.totalPages.toLocaleString()}</span><span>Pages</span></div>
                                     <div className="flex flex-col items-center"><span className="text-2xl text-black font-normal crimson">{stats.avgRating}</span><span>Avg Rating</span></div>
                                 </div>
                             )}
@@ -909,7 +928,7 @@
                                                     <div className="flex-1">
                                                         <h4 className="crimson text-2xl font-bold leading-none mb-1">{book.title}</h4>
                                                         <p className="text-xs uppercase tracking-widest text-gray-500 font-bold">{book.author}</p>
-                                                        <div className="mt-2 text-[10px] text-gray-400 font-bold uppercase">{book.classification}</div>
+                                                        <div className="mt-2 text-[10px] text-gray-400 font-bold uppercase">{book.classification} {book.pages ? `• ${book.pages} p.` : ''}</div>
                                                     </div>
                                                     {!isReadOnly && (
                                                         <div className="flex flex-col gap-2 shrink-0">
@@ -999,7 +1018,7 @@
                                                     <button type="button" onClick={() => setNewBook({...newBook, status: 'reading'})} className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors ${newBook.status === 'reading' ? 'bg-[#9b7e46] text-white' : 'text-gray-400 hover:text-black'}`}>Currently Reading</button>
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                 <input type="text" placeholder="Title" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.title} onChange={e => setNewBook({...newBook, title: e.target.value})} required />
                                                 <input 
                                                     type="text" 
@@ -1007,6 +1026,7 @@
                                                     className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" 
                                                     value={newBook.author} onChange={e => setNewBook({...newBook, author: e.target.value})} required 
                                                 />
+                                                <input type="number" placeholder="Pages" className="w-full bg-[#fdfaf3] border border-[#dcd9d0] p-3 text-sm focus:border-[#9b7e46] outline-none transition-colors" value={newBook.pages || ''} onChange={e => setNewBook({...newBook, pages: e.target.value})} />
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
@@ -1075,6 +1095,7 @@
                                                             <h2 className="crimson text-4xl md:text-5xl font-bold text-[#1a1a1a] mb-3 leading-tight">{book.title}</h2>
                                                             <div className="flex flex-wrap items-center gap-4 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
                                                                 <span className="flex items-center gap-1"><Icon name="calendar" size={12}/> {book.monthFinished} {book.year}</span>
+                                                                {book.pages && <span className="flex items-center gap-1"><Icon name="book-open" size={12}/> {book.pages} p.</span>}
                                                                 {book.tag && <span className="bg-[#f0ede4] text-[#5a5a5a] px-3 py-1 rounded-full">{book.tag}</span>}
                                                             </div>
                                                         </div>
