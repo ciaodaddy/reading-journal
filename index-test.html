@@ -805,37 +805,46 @@
             };
 
             const finalizeReview = async () => {
-                setIsGenerating(true);
-                const { addDoc } = window.FirebaseSDK;
-                
-                const isCollection = COLLECTION_CLASSIFICATIONS.includes(reflectionBook.classification);
-                const questionsUsed = [...(isCollection ? QUESTIONS_COLLECTION : QUESTIONS_NOVEL), QUESTION_FINAL];
-                const dataStr = questionsUsed.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
-                
-                let systemInstruction = `Synthesize a narrative reading journal entry for "${reflectionBook.title}" by ${reflectionBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI.`;
-                
-                if (isCollection) {
-                    systemInstruction += `\n\nCONTEXT: This is a short story collection or anthology. Instead of focusing on a single plot arc, discuss the thematic threads that connect the stories, the variety of voices (if an anthology), or specific standout stories mentioned in the notes.`;
-                } else {
-                    systemInstruction += `\n\nCRITICAL INSTRUCTION: Do not reuse phrases from the questions. Weave the insights into a natural, cohesive narrative flow.`;
-                }
-                systemInstruction += `\n\nNOTE: The final question in the notes is an optional "catch-all". If the user provided content there, integrate it smoothly. If it is "N/A", ignore it.`;
+    setIsGenerating(true);
+    const { addDoc } = window.FirebaseSDK;
+    
+    const isCollection = COLLECTION_CLASSIFICATIONS.includes(reflectionBook.classification);
+    const questionsUsed = [...(isCollection ? QUESTIONS_COLLECTION : QUESTIONS_NOVEL), QUESTION_FINAL];
+    const dataStr = questionsUsed.map((q, i) => `Q: ${q}\nA: ${answers[i] || 'N/A'}`).join('\n\n');
+    
+    let systemInstruction = `Synthesize a narrative reading journal entry for "${reflectionBook.title}" by ${reflectionBook.author}. IMPORTANT: Analyze the voice, tone, and writing style of the provided answers. Write the entry using that EXACT persona and style. Do not sound like a generic AI.`;
+    
+    if (isCollection) {
+        systemInstruction += `\n\nCONTEXT: This is a short story collection or anthology. Instead of focusing on a single plot arc, discuss the thematic threads that connect the stories, the variety of voices (if an anthology), or specific standout stories mentioned in the notes.`;
+    } else {
+        systemInstruction += `\n\nCRITICAL INSTRUCTION: Do not reuse phrases from the questions. Weave the insights into a natural, cohesive narrative flow.`;
+    }
+    systemInstruction += `\n\nNOTE: The final question in the notes is an optional "catch-all". If the user provided content there, integrate it smoothly. If it is "N/A", ignore it.`;
 
-                try {
-                    const review = await callGemini(`${systemInstruction}\n\nFocus on the specific reflections in these notes:\n\n${dataStr}\n\nWord Count: 200-250 words. START DIRECTLY with narrative content. No headers.`);
-                    const tagRaw = await callGemini(`Provide a punchy 2-4 word atmospheric tag for: ${review}`);
-                    const tag = tagRaw.replace(/[".]/g, '').trim();
-                    
-                    await addDoc(getCollectionRef(), { ...reflectionBook, review, tag, year: "2026", updatedAt: Date.now(), order: nextOrder() });
-                    setIsInterviewOpen(false);
-                    resetNewBook();
-                    setReflectionBook(null); 
-                } catch (e) { 
-                    setErrorMessage(`Synthesis failed: ${e.message}`); 
-                } finally { 
-                    setIsGenerating(false); 
-                }
-            };
+    // INSTRUCT THE MODEL TO RETURN STRICT JSON
+    systemInstruction += `\n\nOUTPUT FORMAT: You must return ONLY a valid JSON object with exactly two keys: "review" (the 200-250 word narrative reflection) and "tag" (a punchy 2-4 word atmospheric tag without punctuation). Do not include markdown formatting or any other text outside the JSON object.`;
+
+    try {
+        // MAKE A SINGLE API CALL
+        const rawResponse = await callGemini(`${systemInstruction}\n\nFocus on the specific reflections in these notes:\n\n${dataStr}`);
+        
+        // PARSE THE JSON (removing markdown code blocks if the AI accidentally includes them)
+        const cleanedResponse = rawResponse.replace(/```json/i, '').replace(/```/g, '').trim();
+        const generatedData = JSON.parse(cleanedResponse);
+        
+        const review = generatedData.review;
+        const tag = generatedData.tag;
+        
+        await addDoc(getCollectionRef(), { ...reflectionBook, review, tag, year: "2026", updatedAt: Date.now(), order: nextOrder() });
+        setIsInterviewOpen(false);
+        resetNewBook();
+        setReflectionBook(null); 
+    } catch (e) { 
+        setErrorMessage(`Synthesis failed: ${e.message}`); 
+    } finally { 
+        setIsGenerating(false); 
+    }
+};
 
             const handleExportData = () => {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(books, null, 2));
