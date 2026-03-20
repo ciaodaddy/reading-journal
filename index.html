@@ -1029,20 +1029,22 @@
                                     {MONTHS.map(month => {
                                         const booksInMonth = filteredFinishedBooks.filter(b => b.monthFinished === month);
                                         if (booksInMonth.length === 0) return null;
-                                        return (
-                                            <div key={month}>
-                                                <h4 className="crimson font-bold text-lg text-[#9b7e46] mb-3 border-b border-[#dcd9d0]/50 pb-1 inline-block">{month}</h4>
-                                                <ul className="space-y-2">
-                                                    {booksInMonth.map(book => (
-                                                        <li key={book.id}>
-                                                            <a href={`#book-${book.id}`} onClick={(e) => { e.preventDefault(); document.getElementById(`book-${book.id}`)?.scrollIntoView({ behavior: 'smooth' }); }} className="text-sm text-gray-700 hover:text-[#1a1a1a] hover:underline decoration-[#9b7e46]/30 underline-offset-2 transition-all block">
-                                                                {book.title}
-                                                            </a>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        );
+const monthPages = booksInMonth.reduce((acc, b) => acc + (parseInt(b.pages) || 0), 0);
+return (
+    <div key={month}>
+        <h4 className="crimson font-bold text-lg text-[#9b7e46] mb-1 border-b border-[#dcd9d0]/50 pb-1 inline-block">{month}</h4>
+        {monthPages > 0 && <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">{monthPages.toLocaleString()} pages</p>}
+        <ul className="space-y-2">
+            {booksInMonth.map(book => (
+                <li key={book.id}>
+                    <a href={`#book-${book.id}`} onClick={(e) => { e.preventDefault(); document.getElementById(`book-${book.id}`)?.scrollIntoView({ behavior: 'smooth' }); }} className="text-sm text-gray-700 hover:text-[#1a1a1a] hover:underline decoration-[#9b7e46]/30 underline-offset-2 transition-all block">
+                        {book.title}
+                    </a>
+                </li>
+            ))}
+        </ul>
+    </div>
+);
                                     })}
                                 </div>
                             </section>
